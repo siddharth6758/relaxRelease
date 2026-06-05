@@ -1,5 +1,6 @@
 import os
 import requests
+from utils import retry, handle_rate_limit
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 TIMEOUT = 60
@@ -8,7 +9,8 @@ TIMEOUT = 60
 def generate_release_notes(commits: list[str], version: str, repo_name: str) -> str:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        raise ValueError("GEMINI_API_KEY environment variable is not set.")
+        print("❌ GEMINI_API_KEY environment variable is not set.")
+        import sys; sys.exit(1)
 
     commit_text = "\n".join(f"- {c}" for c in commits)
 
@@ -34,17 +36,17 @@ Only include categories that have relevant commits.
         "contents": [{"parts": [{"text": prompt}]}]
     }
 
-    response = requests.post(
-        f"{GEMINI_API_BASE}?key={api_key}",
-        json=payload,
-        timeout=TIMEOUT
-    )
+    def call():
+        response = requests.post(
+            f"{GEMINI_API_BASE}?key={api_key}",
+            json=payload,
+            timeout=TIMEOUT
+        )
+        if response.status_code != 200:
+            handle_rate_limit(response.status_code, response.text, "Gemini")
+        return response.json()["candidates"][0]["content"]["parts"][0]["text"]
 
-    if response.status_code != 200:
-        raise RuntimeError(f"Gemini API error {response.status_code}: {response.text}")
-
-    result = response.json()
-    return result["candidates"][0]["content"]["parts"][0]["text"]
+    return retry(call)
 
 
 if __name__ == "__main__":

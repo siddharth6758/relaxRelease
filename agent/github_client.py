@@ -1,4 +1,5 @@
 import requests
+from utils import retry, handle_rate_limit
 
 GITHUB_API_BASE = "https://api.github.com"
 TIMEOUT = 30
@@ -16,16 +17,16 @@ def _headers(token: str) -> dict:
 def get_commits_between_tags(repo: str, base_tag: str, head_tag: str, token: str) -> list[str]:
     url = f"{GITHUB_API_BASE}/repos/{repo}/compare/{base_tag}...{head_tag}"
 
-    response = requests.get(url, headers=_headers(token), timeout=TIMEOUT)
+    def call():
+        response = requests.get(url, headers=_headers(token), timeout=TIMEOUT)
+        if response.status_code != 200:
+            handle_rate_limit(response.status_code, response.text, "GitHub")
+        return [
+            c["commit"]["message"].split("\n")[0]
+            for c in response.json().get("commits", [])
+        ]
 
-    if response.status_code != 200:
-        raise RuntimeError(f"GitHub API error {response.status_code}: {response.text}")
-
-    data = response.json()
-    return [
-        c["commit"]["message"].split("\n")[0]
-        for c in data.get("commits", [])
-    ]
+    return retry(call)
 
 
 def create_release_draft(
@@ -45,17 +46,18 @@ def create_release_draft(
         "prerelease": False
     }
 
-    response = requests.post(
-        url,
-        headers=_headers(token),
-        json=payload,
-        timeout=TIMEOUT
-    )
+    def call():
+        response = requests.post(
+            url,
+            headers=_headers(token),
+            json=payload,
+            timeout=TIMEOUT
+        )
+        if response.status_code != 201:
+            handle_rate_limit(response.status_code, response.text, "GitHub")
+        return response.json()
 
-    if response.status_code != 201:
-        raise RuntimeError(f"GitHub API error {response.status_code}: {response.text}")
-
-    return response.json()
+    return retry(call)
 
 
 if __name__ == "__main__":
