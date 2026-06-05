@@ -1,0 +1,69 @@
+import os
+import sys
+from classifier import classify_release
+from github_client import get_commits_between_tags, create_release_draft
+from release_notes import generate_release_notes
+
+
+def run_agent(repo: str, previous_tag: str, new_tag: str, github_token: str):
+    print(f"\n🚀 RelaxRelease Agent starting...")
+    print(f"   Repo         : {repo}")
+    print(f"   Previous tag : {previous_tag}")
+    print(f"   New tag      : {new_tag}")
+
+    # Step 1: Classify the release
+    release_type = classify_release(previous_tag, new_tag)
+    print(f"\n📋 Release type  : {release_type.upper()}")
+
+    # Step 2: Fetch commits between tags
+    print(f"\n📦 Fetching commits between {previous_tag} and {new_tag}...")
+    commits = get_commits_between_tags(repo, previous_tag, new_tag, github_token)
+
+    if not commits:
+        print("⚠️  No commits found between tags. Exiting.")
+        sys.exit(0)
+
+    print(f"   Found {len(commits)} commits:")
+    for c in commits:
+        print(f"   - {c}")
+
+    # Step 3: Generate release notes
+    print(f"\n✍️  Generating release notes with Gemini...")
+    notes = generate_release_notes(
+        commits=commits,
+        version=new_tag,
+        repo_name=repo
+    )
+    print("\n--- Generated Release Notes ---")
+    print(notes)
+    print("-------------------------------")
+
+    # Step 4: Create GitHub Release draft
+    print(f"\n📝 Creating GitHub Release draft...")
+    release = create_release_draft(
+        repo=repo,
+        tag=new_tag,
+        release_notes=notes,
+        token=github_token,
+        release_name=f"Release {new_tag}"
+    )
+
+    print(f"\n✅ Draft release created successfully!")
+    print(f"   View it here: {release['html_url']}")
+    print(f"\n   Review the draft and click 'Publish release' when ready.")
+
+
+if __name__ == "__main__":
+    required_vars = ["GITHUB_TOKEN", "GITHUB_REPOSITORY", "PREVIOUS_TAG", "NEW_TAG"]
+    missing = [v for v in required_vars if not os.environ.get(v)]
+
+    if missing:
+        print(f"❌ Missing required environment variables: {', '.join(missing)}")
+        sys.exit(1)
+
+    run_agent(
+        repo=os.environ["GITHUB_REPOSITORY"],
+        previous_tag=os.environ["PREVIOUS_TAG"],
+        new_tag=os.environ["NEW_TAG"],
+        github_token=os.environ["GITHUB_TOKEN"]
+    )
