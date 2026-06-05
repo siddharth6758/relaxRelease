@@ -1,13 +1,8 @@
 import os
-import json
-import urllib.request
-import urllib.error
+import requests
 
-
-GEMINI_API_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/"
-    "models/gemini-2.5-flash:generateContent"
-)
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+TIMEOUT = 60
 
 
 def generate_release_notes(commits: list[str], version: str, repo_name: str) -> str:
@@ -35,20 +30,21 @@ Be concise, professional, and developer-friendly.
 Only include categories that have relevant commits.
 """
 
-    payload = json.dumps({
+    payload = {
         "contents": [{"parts": [{"text": prompt}]}]
-    }).encode("utf-8")
+    }
 
-    req = urllib.request.Request(
-        f"{GEMINI_API_URL}?key={api_key}",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST"
+    response = requests.post(
+        f"{GEMINI_API_BASE}?key={api_key}",
+        json=payload,
+        timeout=TIMEOUT
     )
 
-    with urllib.request.urlopen(req) as response:
-        result = json.loads(response.read().decode("utf-8"))
-        return result["candidates"][0]["content"]["parts"][0]["text"]
+    if response.status_code != 200:
+        raise RuntimeError(f"Gemini API error {response.status_code}: {response.text}")
+
+    result = response.json()
+    return result["candidates"][0]["content"]["parts"][0]["text"]
 
 
 if __name__ == "__main__":
