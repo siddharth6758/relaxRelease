@@ -4,6 +4,7 @@ from classifier import classify_release
 from github_client import get_commits_between_tags, create_release_draft
 from release_notes import generate_release_notes
 from major_release import build_major_release_body
+from notifier import send_release_notification
 
 
 def run_agent(repo: str, previous_tag: str, new_tag: str, github_token: str):
@@ -59,9 +60,25 @@ def run_agent(repo: str, previous_tag: str, new_tag: str, github_token: str):
         release_name=f"{'🚀 Major Release' if release_type == 'major' else 'Release'} {new_tag}"
     )
 
+    draft_url = release["html_url"]
     print(f"\n✅ Draft release created successfully!")
     print(f"   Type : {release_type.upper()}")
-    print(f"   View : {release['html_url']}")
+    print(f"   View : {draft_url}")
+
+    # Step 5: Send email notification
+    recipient = os.environ.get("NOTIFY_EMAIL")
+    if recipient:
+        print(f"\n📧 Sending notification email...")
+        send_release_notification(
+            release_type=release_type,
+            version=new_tag,
+            repo=repo,
+            draft_url=draft_url,
+            recipient_email=recipient
+        )
+    else:
+        print(f"\n⚠️  NOTIFY_EMAIL not set — skipping email notification.")
+
     print(f"\n   Review the draft and click 'Publish release' when ready.")
 
 

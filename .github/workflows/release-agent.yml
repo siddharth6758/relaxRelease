@@ -43,6 +43,8 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PREVIOUS_TAG: ${{ steps.prev_tag.outputs.previous_tag }}
           NEW_TAG: ${{ github.ref_name }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
         run: |
           cd agent
           python main.py
