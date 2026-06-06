@@ -12,19 +12,11 @@ app = Flask(__name__)
 
 
 def verify_github_signature(payload: bytes, signature: str, secret: str) -> bool:
-    """
-    Verifies that the webhook request genuinely came from GitHub.
-    GitHub signs every webhook with a secret you define.
-    """
     if not signature:
         return False
-    expected = "sha256=" + hmac.new(
-        secret.encode("utf-8"),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
+    mac = hmac.new(secret.encode("utf-8"), msg=payload, digestmod=hashlib.sha256)
+    expected = "sha256=" + mac.hexdigest()
     return hmac.compare_digest(expected, signature)
-
 
 @app.route("/health", methods=["GET"])
 def health():
