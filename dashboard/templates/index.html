@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}RelaxRelease — Releases{% endblock %}
+{% block content %}
+<div class="page-title">Release History</div>
+<div class="page-subtitle">All releases processed by RelaxRelease agent</div>
+
+{% if releases %}
+    {% for release in releases %}
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                    <span style="font-size:16px; font-weight:600;">{{ release.repo }}</span>
+                    <span style="font-size:16px; color:#58a6ff;">{{ release.tag }}</span>
+                    <span class="badge badge-{{ release.release_type }}">{{ release.release_type }}</span>
+                    <span class="badge badge-draft">{{ release.status }}</span>
+                </div>
+                <div style="font-size:13px; color:#8b949e;">
+                    {{ release.previous_tag }} → {{ release.tag }} &nbsp;·&nbsp;
+                    {{ release.created_at.strftime('%b %d, %Y %H:%M UTC') }}
+                </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <a href="/release/{{ release.id }}" class="btn btn-secondary">View Notes</a>
+                {% if release.draft_url %}
+                <a href="{{ release.draft_url }}" target="_blank" class="btn btn-primary">Review Draft</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="empty-state">
+        <h3>No releases yet</h3>
+        <p>Push a version tag to your repository to generate your first release.</p>
+    </div>
+{% endif %}
+{% endblock %}

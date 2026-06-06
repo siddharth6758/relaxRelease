@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ release.tag }} — RelaxRelease{% endblock %}
+{% block content %}
+<div style="margin-bottom:24px;">
+    <a href="/" style="color:#58a6ff; text-decoration:none; font-size:14px;">← Back to releases</a>
+</div>
+
+<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+    <div class="page-title">{{ release.repo }} {{ release.tag }}</div>
+    <span class="badge badge-{{ release.release_type }}">{{ release.release_type }}</span>
+    <span class="badge badge-draft">{{ release.status }}</span>
+</div>
+<div class="page-subtitle">
+    {{ release.previous_tag }} → {{ release.tag }} &nbsp;·&nbsp;
+    {{ release.created_at.strftime('%b %d, %Y %H:%M UTC') }}
+</div>
+
+{% if release.draft_url %}
+<div style="margin-bottom:24px;">
+    <a href="{{ release.draft_url }}" target="_blank" class="btn btn-primary">
+        Review & Publish Draft on GitHub →
+    </a>
+</div>
+{% endif %}
+
+<div class="card">
+    <div style="font-size:14px; font-weight:600; margin-bottom:16px; color:#8b949e;">
+        GENERATED RELEASE NOTES
+    </div>
+    <pre>{{ release.release_notes }}</pre>
+</div>
+{% endblock %}
