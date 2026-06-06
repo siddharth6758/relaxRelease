@@ -2,28 +2,31 @@ import os
 import hmac
 import hashlib
 import sys
+import json
 from pathlib import Path
-from datetime import datetime
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
 
-# Add agent folder to path so we can import agent modules
-sys.path.insert(0, str(Path(__file__).parent.parent / "agent"))
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from database import init_db, save_release, get_all_releases, get_release_by_id
-from classifier import classify_release
-from github_client import get_commits_between_tags, create_release_draft
-from release_notes import generate_release_notes
-from major_release import build_major_release_body
-from notifier import send_release_notification
+from dashboard.database import init_db, save_release, get_all_releases, get_release_by_id
+from agent.classifier import classify_release
+from agent.github_client import get_commits_between_tags, create_release_draft
+from agent.release_notes import generate_release_notes
+from agent.major_release import build_major_release_body
+from agent.notifier import send_release_notification
 
 app = FastAPI(title="RelaxRelease")
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+templates = Jinja2Templates(
+    directory=str(Path(__file__).parent / "templates")
+)
 
 
 from contextlib import asynccontextmanager

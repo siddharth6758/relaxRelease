@@ -1,6 +1,6 @@
 import os
 import requests
-from utils import retry, handle_rate_limit
+from src.agent.utils import retry, handle_rate_limit
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 TIMEOUT = 60

@@ -1,5 +1,5 @@
 import requests
-from utils import retry, handle_rate_limit
+from src.agent.utils import retry, handle_rate_limit
 
 GITHUB_API_BASE = "https://api.github.com"
 TIMEOUT = 30

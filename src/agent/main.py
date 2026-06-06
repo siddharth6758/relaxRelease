@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+from pathlib import Path
+load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
+
 import os
 import sys
 from classifier import classify_release
@@ -5,10 +9,6 @@ from github_client import get_commits_between_tags, create_release_draft
 from release_notes import generate_release_notes
 from major_release import build_major_release_body
 from notifier import send_release_notification
-
-from dotenv import load_dotenv
-from pathlib import Path
-load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 
 def run_agent(repo: str, previous_tag: str, new_tag: str, github_token: str):
     print(f"\n🚀 RelaxRelease Agent starting...")

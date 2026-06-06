@@ -1,7 +1,7 @@
 import os
 import json
 import requests
-from utils import retry, handle_rate_limit
+from src.agent.utils import retry, handle_rate_limit
 
 RESEND_API_URL = "https://api.resend.com/emails"
 TIMEOUT = 30

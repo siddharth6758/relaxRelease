@@ -5,7 +5,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
 from pathlib import Path
 
-load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
