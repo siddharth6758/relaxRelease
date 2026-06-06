@@ -3,6 +3,7 @@ import sys
 from classifier import classify_release
 from github_client import get_commits_between_tags, create_release_draft
 from release_notes import generate_release_notes
+from major_release import build_major_release_body
 
 
 def run_agent(repo: str, previous_tag: str, new_tag: str, github_token: str):
@@ -27,13 +28,23 @@ def run_agent(repo: str, previous_tag: str, new_tag: str, github_token: str):
     for c in commits:
         print(f"   - {c}")
 
-    # Step 3: Generate release notes
-    print(f"\n✍️  Generating release notes with Gemini...")
-    notes = generate_release_notes(
-        commits=commits,
-        version=new_tag,
-        repo_name=repo
-    )
+    # Step 3: Generate release notes based on release type
+    if release_type == "major":
+        print(f"\n✍️  Major release detected — generating comprehensive documentation...")
+        notes = build_major_release_body(
+            commits=commits,
+            previous_version=previous_tag,
+            new_version=new_tag,
+            repo_name=repo
+        )
+    else:
+        print(f"\n✍️  Generating release notes with Gemini...")
+        notes = generate_release_notes(
+            commits=commits,
+            version=new_tag,
+            repo_name=repo
+        )
+
     print("\n--- Generated Release Notes ---")
     print(notes)
     print("-------------------------------")
@@ -45,11 +56,12 @@ def run_agent(repo: str, previous_tag: str, new_tag: str, github_token: str):
         tag=new_tag,
         release_notes=notes,
         token=github_token,
-        release_name=f"Release {new_tag}"
+        release_name=f"{'🚀 Major Release' if release_type == 'major' else 'Release'} {new_tag}"
     )
 
     print(f"\n✅ Draft release created successfully!")
-    print(f"   View it here: {release['html_url']}")
+    print(f"   Type : {release_type.upper()}")
+    print(f"   View : {release['html_url']}")
     print(f"\n   Review the draft and click 'Publish release' when ready.")
 
 
