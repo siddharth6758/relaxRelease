@@ -11,12 +11,21 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is not set.")
 
-# Fix Koyeb/Heroku-style postgres:// URLs — SQLAlchemy requires postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# SQLAlchemy setup
-engine = create_engine(DATABASE_URL)
+# SQLAlchemy setup with connection pooling and SSL for Supabase
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,        # test connection before using it
+    pool_recycle=300,          # recycle connections every 5 minutes
+    pool_size=5,               # max 5 connections
+    max_overflow=2,            # allow 2 extra connections under load
+    connect_args={
+        "sslmode": "require",  # Supabase requires SSL
+        "connect_timeout": 10
+    }
+)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
