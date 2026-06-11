@@ -7,8 +7,14 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from fastapi import Form
+from .auth import (
+    sign_in, sign_up, sign_out,
+    get_oauth_url, get_user,
+    get_current_user, require_auth
+)
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
@@ -42,21 +48,29 @@ app = FastAPI(title="RelaxRelease", lifespan=lifespan)
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
     releases = get_all_releases()
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "releases": releases
+        "releases": releases,
+        "user": user
     })
 
 
 @app.get("/release/{release_id}", response_class=HTMLResponse)
 async def release_detail(request: Request, release_id: int):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
     release = get_release_by_id(release_id)
     if not release:
         raise HTTPException(status_code=404, detail="Release not found")
     return templates.TemplateResponse("release.html", {
         "request": request,
-        "release": release
+        "release": release,
+        "user": user
     })
 
 
@@ -218,6 +232,126 @@ def run_agent_background(repo: str, new_tag: str):
         print(f"❌ Agent error: {e}")
         import traceback
         traceback.print_exc()
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request, error: str = None):
+    user = get_current_user(request)
+    if user:
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "user": None,
+        "error": error
+    })
+
+
+@app.post("/login")
+async def login(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...)
+):
+    result = sign_in(email, password)
+    if "access_token" in result:
+        response = RedirectResponse("/", status_code=302)
+        response.set_cookie(
+            "access_token",
+            result["access_token"],
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=3600
+        )
+        response.set_cookie(
+            "refresh_token",
+            result["refresh_token"],
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=604800
+        )
+        return response
+    error = result.get("error_description") or result.get("msg") or "Invalid credentials"
+    return RedirectResponse(f"/login?error={error}", status_code=302)
+
+
+@app.get("/signup", response_class=HTMLResponse)
+async def signup_page(request: Request, error: str = None, success: str = None):
+    user = get_current_user(request)
+    if user:
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse("signup.html", {
+        "request": request,
+        "user": None,
+        "error": error,
+        "success": success
+    })
+
+
+@app.post("/signup")
+async def signup(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...)
+):
+    result = sign_up(email, password)
+    if "id" in result:
+        return RedirectResponse(
+            "/signup?success=Account created! Check your email to verify.",
+            status_code=302
+        )
+    error = result.get("msg") or result.get("error_description") or "Signup failed"
+    return RedirectResponse(f"/signup?error={error}", status_code=302)
+
+
+@app.get("/auth/oauth/{provider}")
+async def oauth_login(provider: str):
+    if provider not in ("github", "google"):
+        raise HTTPException(status_code=400, detail="Invalid provider")
+    url = get_oauth_url(provider)
+    return RedirectResponse(url, status_code=302)
+
+
+@app.get("/auth/callback")
+async def auth_callback(request: Request):
+    """Supabase redirects here after OAuth login."""
+    code = request.query_params.get("code")
+    if not code:
+        return RedirectResponse("/login?error=OAuth failed", status_code=302)
+
+    # Exchange code for session
+    import requests as req
+    import os
+    response = req.post(
+        f"{os.environ.get('SUPABASE_URL')}/auth/v1/token?grant_type=pkce",
+        headers={
+            "apikey": os.environ.get("SUPABASE_ANON_KEY"),
+            "Content-Type": "application/json"
+        },
+        json={"auth_code": code},
+        timeout=10
+    )
+    result = response.json()
+
+    if "access_token" in result:
+        redirect = RedirectResponse("/", status_code=302)
+        redirect.set_cookie("access_token", result["access_token"],
+                           httponly=True, secure=True, samesite="lax", max_age=3600)
+        redirect.set_cookie("refresh_token", result["refresh_token"],
+                           httponly=True, secure=True, samesite="lax", max_age=604800)
+        return redirect
+    return RedirectResponse("/login?error=OAuth failed", status_code=302)
+
+
+@app.get("/logout")
+async def logout(request: Request):
+    token = request.cookies.get("access_token")
+    if token:
+        sign_out(token)
+    response = RedirectResponse("/login", status_code=302)
+    response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
+    return response
 
 
 if __name__ == "__main__":

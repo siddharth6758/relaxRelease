@@ -1,38 +1,65 @@
 {% extends "base.html" %}
 {% block title %}RelaxRelease — Releases{% endblock %}
 {% block content %}
-<div class="page-title">Release History</div>
-<div class="page-subtitle">All releases processed by RelaxRelease agent</div>
+
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-white">Release History</h1>
+        <p class="text-gray-400 text-sm mt-1">All releases processed by RelaxRelease</p>
+    </div>
+</div>
 
 {% if releases %}
+<div class="space-y-3">
     {% for release in releases %}
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div>
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-                    <span style="font-size:16px; font-weight:600;">{{ release.repo }}</span>
-                    <span style="font-size:16px; color:#58a6ff;">{{ release.tag }}</span>
-                    <span class="badge badge-{{ release.release_type }}">{{ release.release_type }}</span>
-                    <span class="badge badge-draft">{{ release.status }}</span>
-                </div>
-                <div style="font-size:13px; color:#8b949e;">
-                    {{ release.previous_tag }} → {{ release.tag }} &nbsp;·&nbsp;
-                    {{ release.created_at.strftime('%b %d, %Y %H:%M UTC') }}
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-white font-medium">{{ release.repo }}</span>
+                        <span class="text-blue-400 font-mono text-sm">{{ release.tag }}</span>
+                        {% if release.release_type == 'major' %}
+                        <span class="bg-red-500/20 text-red-400 border border-red-500/30
+                                     text-xs px-2 py-0.5 rounded-full">major</span>
+                        {% else %}
+                        <span class="bg-green-500/20 text-green-400 border border-green-500/30
+                                     text-xs px-2 py-0.5 rounded-full">minor</span>
+                        {% endif %}
+                        <span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded-full">
+                            {{ release.status }}
+                        </span>
+                    </div>
+                    <div class="text-gray-500 text-xs">
+                        {{ release.previous_tag }} → {{ release.tag }} &nbsp;·&nbsp;
+                        {{ release.created_at.strftime('%b %d, %Y %H:%M UTC') }}
+                    </div>
                 </div>
             </div>
-            <div style="display:flex; gap:8px;">
-                <a href="/release/{{ release.id }}" class="btn btn-secondary">View Notes</a>
+            <div class="flex items-center gap-2">
+                <a href="/release/{{ release.id }}"
+                   class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300
+                          text-sm px-3 py-1.5 rounded-lg transition">
+                    View Notes
+                </a>
                 {% if release.draft_url %}
-                <a href="{{ release.draft_url }}" target="_blank" class="btn btn-primary">Review Draft</a>
+                <a href="{{ release.draft_url }}" target="_blank"
+                   class="bg-blue-600 hover:bg-blue-500 text-white text-sm
+                          px-3 py-1.5 rounded-lg transition">
+                    Review Draft →
+                </a>
                 {% endif %}
             </div>
         </div>
     </div>
     {% endfor %}
+</div>
+
 {% else %}
-    <div class="empty-state">
-        <h3>No releases yet</h3>
-        <p>Push a version tag to your repository to generate your first release.</p>
-    </div>
+<div class="text-center py-24">
+    <div class="text-5xl mb-4">🚀</div>
+    <h3 class="text-xl font-semibold text-white mb-2">No releases yet</h3>
+    <p class="text-gray-400 text-sm">Push a version tag to your repository to generate your first release.</p>
+</div>
 {% endif %}
 {% endblock %}
