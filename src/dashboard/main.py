@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Form
@@ -311,36 +311,36 @@ async def oauth_login(provider: str):
     url = get_oauth_url(provider)
     return RedirectResponse(url, status_code=302)
 
+@app.post("/auth/session")
+async def set_session(data: dict, response: Response):
+    response.set_cookie(
+        "access_token",
+        data["access_token"],
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=3600
+    )
+    response.set_cookie(
+        "refresh_token",
+        data["refresh_token"],
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=604800
+    )
+    return {"ok": True}
 
 @app.get("/auth/callback")
 async def auth_callback(request: Request):
     """Supabase redirects here after OAuth login."""
-    code = request.query_params.get("code")
-    if not code:
-        return RedirectResponse("/login?error=OAuth failed", status_code=302)
-
-    # Exchange code for session
-    import requests as req
-    import os
-    response = req.post(
-        f"{os.environ.get('SUPABASE_URL')}/auth/v1/token?grant_type=pkce",
-        headers={
-            "apikey": os.environ.get("SUPABASE_ANON_KEY"),
-            "Content-Type": "application/json"
-        },
-        json={"auth_code": code},
-        timeout=10
+    return templates.TemplateResponse(
+        "callback.html",
+        {
+            "request": request,
+            "error": None
+        }
     )
-    result = response.json()
-
-    if "access_token" in result:
-        redirect = RedirectResponse("/", status_code=302)
-        redirect.set_cookie("access_token", result["access_token"],
-                           httponly=True, secure=True, samesite="lax", max_age=3600)
-        redirect.set_cookie("refresh_token", result["refresh_token"],
-                           httponly=True, secure=True, samesite="lax", max_age=604800)
-        return redirect
-    return RedirectResponse("/login?error=OAuth failed", status_code=302)
 
 
 @app.get("/logout")

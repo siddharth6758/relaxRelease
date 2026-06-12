@@ -1,0 +1,15 @@
+<script>
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+
+  const access_token = params.get("access_token");
+  const refresh_token = params.get("refresh_token");
+
+  fetch("/auth/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_token, refresh_token })
+  }).then(() => {
+    window.location.href = "/";
+  });
+</script>
