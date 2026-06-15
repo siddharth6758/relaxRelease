@@ -15,6 +15,7 @@ from .auth import (
     get_oauth_url, get_user,
     get_current_user, require_auth
 )
+from .billing import router as billing_router
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
@@ -22,7 +23,10 @@ load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dashboard.database import init_db, save_release, get_all_releases, get_release_by_id
+from dashboard.database import (
+    init_db, save_release, get_all_releases, get_release_by_id,
+    check_plan_limits,
+)
 from agent.classifier import classify_release
 from agent.github_client import get_commits_between_tags, create_release_draft
 from agent.release_notes import generate_release_notes
@@ -44,6 +48,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="RelaxRelease", lifespan=lifespan)
+app.include_router(billing_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -142,11 +147,16 @@ async def webhook(request: Request):
 
     print(f"✅ Tag received: {tag} on {repo}")
 
+    # Resolve user_id from webhook payload (sender login → match release owner)
+    # For now we use a single-owner model: GITHUB_REPOSITORY owner
+    user_id = payload.get("sender", {}).get("id")
+    user_id = str(user_id) if user_id else None
+
     # Run agent in background
     import threading
     thread = threading.Thread(
         target=run_agent_background,
-        args=(repo, tag),
+        args=(repo, tag, user_id),
         daemon=True
     )
     thread.start()
@@ -158,13 +168,20 @@ async def webhook(request: Request):
     })
 
 
-def run_agent_background(repo: str, new_tag: str):
+def run_agent_background(repo: str, new_tag: str, user_id: str = None):
     """Runs the release agent in a background thread."""
     try:
         github_token = os.environ.get("GITHUB_TOKEN")
         if not github_token:
             print("❌ GITHUB_TOKEN not set")
             return
+
+        # Plan limit enforcement
+        if user_id:
+            guard = check_plan_limits(user_id)
+            if not guard["allowed"]:
+                print(f"🚫 Plan limit hit for user {user_id}: {guard['reason']}")
+                return
 
         # Get all tags to find previous one
         import requests as req
@@ -218,7 +235,8 @@ def run_agent_background(repo: str, new_tag: str):
             release_type=release_type,
             draft_url=draft_url,
             release_notes=notes,
-            status="draft"
+            status="draft",
+            user_id=user_id,
         )
 
         print(f"✅ Release draft created: {draft_url}")

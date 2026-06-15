@@ -23,9 +23,19 @@
     <nav class="bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center gap-6">
         <a href="/" class="text-blue-400 font-bold text-lg">🚀 RelaxRelease</a>
         <a href="/" class="text-gray-400 hover:text-white text-sm transition">Releases</a>
+        <a href="/billing/plan" class="text-gray-400 hover:text-white text-sm transition">Billing</a>
         <a href="/settings" class="text-gray-400 hover:text-white text-sm transition">Settings</a>
         <div class="ml-auto flex items-center gap-4">
             {% if user %}
+            {% if plan is defined %}
+                {% if plan == "pro" %}
+                <span class="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs px-2 py-0.5 rounded-full">Pro</span>
+                {% elif plan == "max" %}
+                <span class="bg-purple-500/20 text-purple-400 border border-purple-500/30 text-xs px-2 py-0.5 rounded-full">Max</span>
+                {% else %}
+                <a href="/billing/plan" class="bg-gray-800 hover:bg-gray-700 text-gray-400 text-xs px-2 py-0.5 rounded-full transition">Free ↑</a>
+                {% endif %}
+            {% endif %}
             <span class="text-gray-400 text-sm">{{ user.email }}</span>
             <a href="/logout" class="text-gray-400 hover:text-white text-sm transition">Logout</a>
             {% else %}
