@@ -11,7 +11,7 @@ import os
 import hmac
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import requests as req
@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from .database import upsert_subscription, cancel_subscription, get_user_plan, PLAN_LIMITS
+from .database import get_subscription, upsert_subscription, cancel_subscription, get_user_plan, PLAN_LIMITS
 from .auth import get_current_user
 
 load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
@@ -166,6 +166,7 @@ async def billing_plan(request: Request, upgraded: int = 0):
     plan = get_user_plan(user["id"])
     limits = PLAN_LIMITS[plan]
 
+    sub = get_subscription(user["id"])
     return templates.TemplateResponse("billing.html", {
         "request": request,
         "user": user,
@@ -173,6 +174,7 @@ async def billing_plan(request: Request, upgraded: int = 0):
         "limits": limits,
         "upgraded": upgraded,
         "plans": PLAN_LIMITS,
+        "expires_at": sub.expires_at if sub else None,
     })
 
 
@@ -234,12 +236,10 @@ async def lemon_squeezy_webhook(request: Request):
 
     plan = _plan_from_variant(ls_variant_id)
 
-    if event_name in (
-        "subscription_created",
-        "subscription_updated",
-        "subscription_resumed",
-        "order_created",
-    ):
+    from datetime import timedelta
+
+    if event_name == "order_created":
+        expires_at = datetime.utcnow() + timedelta(days=30)
         upsert_subscription(
             user_id=user_id,
             plan=plan,
@@ -247,24 +247,12 @@ async def lemon_squeezy_webhook(request: Request):
             ls_customer_id=ls_customer_id,
             ls_variant_id=ls_variant_id,
             status="active",
-            current_period_end=current_period_end,
+            expires_at=expires_at,
         )
-        print(f"✅ Subscription upserted: user={user_id} plan={plan}")
+        print(f"✅ One-time payment: user={user_id} plan={plan} expires={expires_at}")
 
     elif event_name in ("subscription_cancelled", "subscription_expired"):
         cancel_subscription(ls_subscription_id)
-        print(f"❌ Subscription cancelled: {ls_subscription_id}")
-
-    elif event_name == "subscription_paused":
-        upsert_subscription(
-            user_id=user_id,
-            plan=plan,
-            ls_subscription_id=ls_subscription_id,
-            ls_customer_id=ls_customer_id,
-            ls_variant_id=ls_variant_id,
-            status="paused",
-            current_period_end=current_period_end,
-        )
-        print(f"⏸️  Subscription paused: {ls_subscription_id}")
+        print(f"❌ Cancelled: {ls_subscription_id}")
 
     return JSONResponse({"ok": True, "event": event_name})

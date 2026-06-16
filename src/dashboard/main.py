@@ -1,4 +1,5 @@
 import os
+import asyncio
 import hmac
 import hashlib
 import sys
@@ -25,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dashboard.database import (
     init_db, save_release, get_all_releases, get_release_by_id,
-    check_plan_limits,
+    check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription
 )
 from agent.classifier import classify_release
 from agent.github_client import get_commits_between_tags, create_release_draft
@@ -44,6 +45,19 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    async def expiry_checker():
+        while True:
+            await asyncio.sleep(3600)  # run every hour
+            try:
+                expired = get_expired_paid_users()
+                for user_id in expired:
+                    enforce_free_tier_on_expiry(user_id)
+                    cancel_subscription(user_id)  # marks status=cancelled in DB
+                    print(f"⏰ Plan expired + downgraded: {user_id}")
+            except Exception as e:
+                print(f"❌ Expiry checker error: {e}")
+
+    asyncio.create_task(expiry_checker())
     print("✅ RelaxRelease dashboard started.")
     yield
 

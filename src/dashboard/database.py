@@ -67,6 +67,8 @@ class Subscription(Base):
     ls_variant_id = Column(String(100), nullable=True)          # which variant they bought
     status = Column(String(50), default="active")               # active / cancelled / expired / paused
     current_period_end = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    plan_activated_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -147,9 +149,12 @@ def get_subscription(user_id: str) -> Subscription | None:
 
 
 def get_user_plan(user_id: str) -> str:
-    """Returns the user's current plan name. Defaults to 'free'."""
     sub = get_subscription(user_id)
-    if not sub or sub.status not in ("active", "on_trial"):
+    if not sub:
+        return "free"
+    if sub.expires_at and datetime.utcnow() > sub.expires_at:
+        return "free"
+    if sub.status != "active":
         return "free"
     return sub.plan
 
@@ -161,10 +166,12 @@ def upsert_subscription(
     ls_customer_id: str,
     ls_variant_id: str,
     status: str,
+    expires_at: datetime = None,
     current_period_end: datetime = None,
 ) -> Subscription:
     db = SessionLocal()
     try:
+        now = datetime.utcnow()
         sub = db.query(Subscription).filter(Subscription.user_id == user_id).first()
         if sub:
             sub.plan = plan
@@ -172,8 +179,9 @@ def upsert_subscription(
             sub.ls_customer_id = ls_customer_id
             sub.ls_variant_id = ls_variant_id
             sub.status = status
-            sub.current_period_end = current_period_end
-            sub.updated_at = datetime.utcnow()
+            sub.expires_at = expires_at
+            sub.plan_activated_at = now
+            sub.updated_at = now
         else:
             sub = Subscription(
                 user_id=user_id,
@@ -182,7 +190,8 @@ def upsert_subscription(
                 ls_customer_id=ls_customer_id,
                 ls_variant_id=ls_variant_id,
                 status=status,
-                current_period_end=current_period_end,
+                expires_at=expires_at,
+                plan_activated_at=now,
             )
             db.add(sub)
         db.commit()
@@ -225,14 +234,18 @@ def get_user_repo_count(user_id: str) -> int:
 
 
 def get_user_monthly_release_count(user_id: str) -> int:
-    """Count releases this user triggered in the current calendar month."""
     db = SessionLocal()
     try:
-        now = datetime.utcnow()
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        sub = get_subscription(user_id)
+        # Use downgrade date as counter start if on free plan
+        if sub and sub.plan_activated_at and get_user_plan(user_id) == "free":
+            count_from = sub.updated_at or sub.plan_activated_at
+        else:
+            now = datetime.utcnow()
+            count_from = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         result = db.query(Release).filter(
             Release.user_id == user_id,
-            Release.created_at >= month_start,
+            Release.created_at >= count_from,
         ).count()
         return result or 0
     finally:
@@ -266,6 +279,50 @@ def check_plan_limits(user_id: str) -> dict:
         }
 
     return {"allowed": True, "plan": plan}
+
+def enforce_free_tier_on_expiry(user_id: str) -> None:
+    """
+    Called when a user's plan expires.
+    Keeps only their oldest repo, resets release counter from now.
+    """
+    db = SessionLocal()
+    try:
+        # Find all distinct repos ordered by first use
+        from sqlalchemy import func
+        oldest = (
+            db.query(Release.repo, func.min(Release.created_at).label("first_used"))
+            .filter(Release.user_id == user_id)
+            .group_by(Release.repo)
+            .order_by("first_used")
+            .first()
+        )
+        if not oldest:
+            return
+        keep_repo = oldest.repo
+        # Soft-delete releases for all other repos by nulling user_id
+        db.query(Release).filter(
+            Release.user_id == user_id,
+            Release.repo != keep_repo,
+        ).update({"user_id": None})
+        db.commit()
+        print(f"⬇️  Downgraded {user_id}: kept repo={keep_repo}")
+    finally:
+        db.close()
+
+
+def get_expired_paid_users() -> list:
+    """Returns user_ids whose plan has expired but are still marked active."""
+    db = SessionLocal()
+    try:
+        now = datetime.utcnow()
+        subs = db.query(Subscription).filter(
+            Subscription.status == "active",
+            Subscription.plan != "free",
+            Subscription.expires_at <= now,
+        ).all()
+        return [s.user_id for s in subs]
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
