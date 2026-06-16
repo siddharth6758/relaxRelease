@@ -202,6 +202,7 @@ async def lemon_squeezy_webhook(request: Request):
     payload = json.loads(body)
     event_name = payload.get("meta", {}).get("event_name", "")
     data = payload.get("data", {})
+    print(f"data:: {data}")
     attributes = data.get("attributes", {})
 
     print(f"📦 LS Webhook received: {event_name}")
@@ -209,7 +210,8 @@ async def lemon_squeezy_webhook(request: Request):
     # Extract fields
     ls_subscription_id = str(data.get("id", ""))
     ls_customer_id = str(attributes.get("customer_id", ""))
-    ls_variant_id = str(attributes.get("variant_id", ""))
+    first_item = attributes.get("first_order_item", {})
+    ls_variant_id = str(first_item.get("variant_id", ""))
     status = attributes.get("status", "active")
     user_id = payload.get("meta", {}).get("custom_data", {}).get("user_id", "")
     user_email = attributes.get("user_email", "")
