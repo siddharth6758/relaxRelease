@@ -56,7 +56,6 @@ APP_URL = os.environ.get("APP_URL", "http://localhost:8000")
 # ---------------------------------------------------------------------------
 
 def _plan_from_variant(variant_id: str) -> str:
-    print(f"DEBUG variant_id from payload _plan: {variant_id}")
     return VARIANT_TO_PLAN.get(str(variant_id), "free")
 
 
@@ -202,7 +201,6 @@ async def lemon_squeezy_webhook(request: Request):
     payload = json.loads(body)
     event_name = payload.get("meta", {}).get("event_name", "")
     data = payload.get("data", {})
-    print(f"data:: {data}")
     attributes = data.get("attributes", {})
 
     print(f"📦 LS Webhook received: {event_name}")
@@ -252,9 +250,6 @@ async def lemon_squeezy_webhook(request: Request):
             status="active",
             expires_at=expires_at,
         )
-        print(f"DEBUG variant_id from payload: {ls_variant_id}")
-        print(f"DEBUG PRO variant from env: {LS_PRO_VARIANT_ID}")
-        print(f"DEBUG MAX variant from env: {LS_MAX_VARIANT_ID}")
         print(f"✅ One-time payment: user={user_id} plan={plan} expires={expires_at}")
 
     elif event_name in ("subscription_cancelled", "subscription_expired"):
