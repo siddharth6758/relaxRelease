@@ -41,10 +41,12 @@ def sign_in(email: str, password: str) -> dict:
 
 
 def get_oauth_url(provider: str) -> str:
-    """Returns the OAuth redirect URL for GitHub or Google."""
+    scopes = "repo,admin:repo_hook" if provider == "github" else ""
+    scope_param = f"&scopes={scopes}" if scopes else ""
     return (
         f"{SUPABASE_URL}/auth/v1/authorize"
         f"?provider={provider}"
+        f"{scope_param}"
         f"&redirect_to={os.environ.get('APP_URL', '')}/auth/callback"
     )
 
@@ -114,6 +116,8 @@ def require_auth(request: Request) -> dict:
         )
     return user
 
+def get_github_token(request: Request) -> str | None:
+    return request.cookies.get("github_token")
 
 if __name__ == "__main__":
     print("Auth module loaded successfully.")

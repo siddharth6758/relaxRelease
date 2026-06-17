@@ -60,6 +60,42 @@ def create_release_draft(
     return retry(call)
 
 
+def create_webhook(github_token: str, repo_full_name: str, webhook_url: str, secret: str) -> dict:
+    """Auto-installs webhook on user's repo via GitHub API."""
+    response = requests.post(
+        f"https://api.github.com/repos/{repo_full_name}/hooks",
+        headers={
+            "Authorization": f"Bearer {github_token}",
+            "Accept": "application/vnd.github+json"
+        },
+        json={
+            "name": "web",
+            "active": True,
+            "events": ["create"],
+            "config": {
+                "url": webhook_url,
+                "content_type": "json",
+                "secret": secret
+            }
+        },
+        timeout=10
+    )
+    return response.json()
+
+
+def delete_webhook(github_token: str, repo_full_name: str, webhook_id: int) -> bool:
+    """Removes webhook from user's repo."""
+    response = requests.delete(
+        f"https://api.github.com/repos/{repo_full_name}/hooks/{webhook_id}",
+        headers={
+            "Authorization": f"Bearer {github_token}",
+            "Accept": "application/vnd.github+json"
+        },
+        timeout=10
+    )
+    return response.status_code == 204
+
+
 if __name__ == "__main__":
     print("GitHub client module loaded successfully.")
     print("Functions available:")

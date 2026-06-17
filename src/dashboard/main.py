@@ -14,7 +14,7 @@ from fastapi import Form
 from .auth import (
     sign_in, sign_up, sign_out,
     get_oauth_url, get_user,
-    get_current_user, require_auth
+    get_current_user, require_auth, get_github_token
 )
 from .billing import router as billing_router
 from dotenv import load_dotenv
@@ -26,10 +26,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dashboard.database import (
     init_db, save_release, get_all_releases, get_release_by_id,
-    check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription
+    check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription, add_repository, list_repositories, delete_repository,
 )
 from agent.classifier import classify_release
-from agent.github_client import get_commits_between_tags, create_release_draft
+from agent.github_client import get_commits_between_tags, create_release_draft, create_webhook, delete_webhook
 from agent.release_notes import generate_release_notes
 from agent.major_release import build_major_release_body
 from agent.notifier import send_release_notification
@@ -345,22 +345,13 @@ async def oauth_login(provider: str):
 
 @app.post("/auth/session")
 async def set_session(data: dict, response: Response):
-    response.set_cookie(
-        "access_token",
-        data["access_token"],
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=3600
-    )
-    response.set_cookie(
-        "refresh_token",
-        data["refresh_token"],
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=604800
-    )
+    response.set_cookie("access_token", data["access_token"],
+        httponly=True, secure=True, samesite="lax", max_age=3600)
+    response.set_cookie("refresh_token", data["refresh_token"],
+        httponly=True, secure=True, samesite="lax", max_age=604800)
+    if data.get("provider_token"):
+        response.set_cookie("github_token", data["provider_token"],
+            httponly=True, secure=True, samesite="lax", max_age=604800)
     return {"ok": True}
 
 @app.get("/auth/callback")
@@ -384,6 +375,53 @@ async def logout(request: Request):
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
     return response
+
+@app.post("/repos/add")
+async def add_repo(request: Request):
+    user = require_auth(request)
+    github_token = get_github_token(request)
+    if not github_token:
+        raise HTTPException(status_code=400, detail="GitHub token missing. Please log out and log in again.")
+
+    body = await request.json()
+    repo_full_name = body.get("repo", "").strip()
+    if not repo_full_name or "/" not in repo_full_name:
+        raise HTTPException(status_code=400, detail="Invalid repo format. Use owner/repo.")
+
+    webhook_url = f"{os.environ.get('APP_URL')}/webhook/github"
+    secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
+
+    result = create_webhook(github_token, repo_full_name, webhook_url, secret)
+
+    if "id" not in result:
+        raise HTTPException(status_code=400, detail=result.get("message", "Failed to create webhook."))
+
+    add_repository(user["id"], repo_full_name, result["id"])
+    return {"ok": True, "webhook_id": result["id"]}
+
+
+@app.get("/repos/list")
+async def list_repos(request: Request):
+    user = require_auth(request)
+    return list_repositories(user["id"])
+
+
+@app.post("/repos/delete")
+async def remove_repo(request: Request):
+    user = require_auth(request)
+    github_token = get_github_token(request)
+
+    body = await request.json()
+    repo_full_name = body.get("repo", "").strip()
+
+    row = delete_repository(user["id"], repo_full_name)
+    if not row:
+        raise HTTPException(status_code=404, detail="Repo not found.")
+
+    if github_token and row.get("webhook_id"):
+        delete_webhook(github_token, repo_full_name, row["webhook_id"])
+
+    return {"ok": True}
 
 
 if __name__ == "__main__":

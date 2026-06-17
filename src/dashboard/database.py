@@ -1,6 +1,8 @@
 import os
+import uuid
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, Column, String, DateTime, Text, Integer
+from sqlalchemy import create_engine, Column, String, DateTime, Text, Integer, Boolean, BigInteger
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
 from pathlib import Path
@@ -72,6 +74,16 @@ class Subscription(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class Repository(Base):
+    """Tracks each user's GitHub repositories."""
+    __tablename__ = "repositories"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), nullable=False)
+    repo_full_name = Column(Text, nullable=False)
+    webhook_id = Column(BigInteger, nullable=True)
+    webhook_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
 # ---------------------------------------------------------------------------
 # DB init
@@ -215,6 +227,43 @@ def cancel_subscription(ls_subscription_id: str) -> None:
     finally:
         db.close()
 
+
+# ---------------------------------------------------------------------------
+# Repository helpers
+# ---------------------------------------------------------------------------
+def add_repository(user_id: str, repo_full_name: str, webhook_id: int) -> Repository:
+    with SessionLocal() as session:
+        repo = Repository(
+            user_id=user_id,
+            repo_full_name=repo_full_name,
+            webhook_id=str(webhook_id),
+            webhook_active=True
+        )
+        session.add(repo)
+        session.commit()
+        session.refresh(repo)
+        return repo
+
+
+def list_repositories(user_id: str) -> list[Repository]:
+    with SessionLocal() as session:
+        return session.query(Repository)\
+            .filter(Repository.user_id == user_id)\
+            .order_by(Repository.created_at.desc())\
+            .all()
+
+
+def delete_repository(user_id: str, repo_full_name: str) -> Repository | None:
+    with SessionLocal() as session:
+        repo = session.query(Repository)\
+            .filter(Repository.user_id == user_id,
+                    Repository.repo_full_name == repo_full_name)\
+            .first()
+        if not repo:
+            return None
+        session.delete(repo)
+        session.commit()
+        return repo
 
 # ---------------------------------------------------------------------------
 # Plan enforcement helpers

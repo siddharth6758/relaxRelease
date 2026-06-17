@@ -4,11 +4,12 @@
 
   const access_token = params.get("access_token");
   const refresh_token = params.get("refresh_token");
+  const provider_token = params.get("provider_token");
 
   fetch("/auth/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ access_token, refresh_token })
+    body: JSON.stringify({ access_token, refresh_token, provider_token })
   }).then(() => {
     window.location.href = "/";
   });
