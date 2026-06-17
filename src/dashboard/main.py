@@ -21,12 +21,14 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
 
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dashboard.database import (
     init_db, save_release, get_all_releases, get_release_by_id,
-    check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription, add_repository, list_repositories, delete_repository,
+    check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription, add_repository, list_repositories, delete_repository, get_user_plan
 )
 from agent.classifier import classify_release
 from agent.github_client import get_commits_between_tags, create_release_draft, create_webhook, delete_webhook
@@ -71,6 +73,7 @@ async def index(request: Request):
     if not user:
         return RedirectResponse("/login", status_code=302)
     releases = get_all_releases()
+    user["plan"] = get_user_plan(user["id"])
     return templates.TemplateResponse("index.html", {
         "request": request,
         "releases": releases,
@@ -423,6 +426,22 @@ async def remove_repo(request: Request):
 
     return {"ok": True}
 
+@app.get("/auth/github/connect")
+async def github_connect(request: Request):
+    """Triggers GitHub OAuth purely to get provider_token for webhook management."""
+    url = (
+        f"{SUPABASE_URL}/auth/v1/authorize"
+        f"?provider=github"
+        f"&scopes=repo,admin:repo_hook"
+        f"&redirect_to={os.environ.get('APP_URL')}/auth/callback"
+    )
+    return RedirectResponse(url)
+
+@app.get("/auth/github/status")
+async def github_status(request: Request):
+    require_auth(request)
+    token = request.cookies.get("github_token")
+    return {"connected": bool(token)}
 
 if __name__ == "__main__":
     import uvicorn
