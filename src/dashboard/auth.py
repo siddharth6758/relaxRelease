@@ -120,12 +120,12 @@ def get_github_token(request: Request) -> str | None:
     return request.cookies.get("github_token")
 
 def get_user_provider(access_token: str) -> str:
-    """Returns the OAuth provider used (github, google, email)."""
     response = requests.get(
         f"{SUPABASE_URL}/auth/v1/user",
         headers={**HEADERS, "Authorization": f"Bearer {access_token}"},
         timeout=10
     )
+    print(f"DEBUG user identity response: {response.json()}")  # add this
     if response.status_code == 200:
         data = response.json()
         identities = data.get("identities", [])
