@@ -393,7 +393,7 @@ async def add_repo(request: Request):
     if not repo_full_name or "/" not in repo_full_name:
         raise HTTPException(status_code=400, detail="Invalid repo format. Use owner/repo.")
 
-    webhook_url = f"{os.environ.get('APP_URL')}/webhook/github"
+    webhook_url = f"{os.environ.get('APP_URL')}/webhook"
     secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
 
     result = create_webhook(github_token, repo_full_name, webhook_url, secret)
