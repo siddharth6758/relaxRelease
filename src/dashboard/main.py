@@ -353,11 +353,9 @@ async def set_session(data: dict, response: Response):
     response.set_cookie("refresh_token", data["refresh_token"],
         httponly=True, secure=True, samesite="lax", max_age=604800)
 
-    if data.get("provider_token"):
-        provider = get_user_provider(data["access_token"])
-        if provider == "github":
-            response.set_cookie("github_token", data["provider_token"],
-                httponly=True, secure=True, samesite="lax", max_age=604800)
+    if data.get("provider_token") and data.get("provider") == "github":
+        response.set_cookie("github_token", data["provider_token"],
+            httponly=True, secure=True, samesite="lax", max_age=604800)
 
     return {"ok": True}
 
