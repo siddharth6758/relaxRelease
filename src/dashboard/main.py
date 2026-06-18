@@ -3,7 +3,7 @@ import asyncio
 import hmac
 import hashlib
 import sys
-import json
+import requests
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -14,7 +14,7 @@ from fastapi import Form
 from .auth import (
     sign_in, sign_up, sign_out,
     get_oauth_url, get_user,
-    get_current_user, require_auth, get_github_token
+    get_current_user, require_auth, get_github_token, get_user_provider
 )
 from .billing import router as billing_router
 from dotenv import load_dotenv
@@ -352,9 +352,13 @@ async def set_session(data: dict, response: Response):
         httponly=True, secure=True, samesite="lax", max_age=3600)
     response.set_cookie("refresh_token", data["refresh_token"],
         httponly=True, secure=True, samesite="lax", max_age=604800)
+
     if data.get("provider_token"):
-        response.set_cookie("github_token", data["provider_token"],
-            httponly=True, secure=True, samesite="lax", max_age=604800)
+        provider = get_user_provider(data["access_token"])
+        if provider == "github":
+            response.set_cookie("github_token", data["provider_token"],
+                httponly=True, secure=True, samesite="lax", max_age=604800)
+
     return {"ok": True}
 
 @app.get("/auth/callback")
@@ -421,8 +425,8 @@ async def remove_repo(request: Request):
     if not row:
         raise HTTPException(status_code=404, detail="Repo not found.")
 
-    if github_token and row.get("webhook_id"):
-        delete_webhook(github_token, repo_full_name, row["webhook_id"])
+    if github_token and row.webhook_id:
+        delete_webhook(github_token, repo_full_name, int(row.webhook_id))
 
     return {"ok": True}
 
@@ -436,6 +440,29 @@ async def github_connect(request: Request):
         f"&redirect_to={os.environ.get('APP_URL')}/auth/callback"
     )
     return RedirectResponse(url)
+
+
+@app.get("/repos/github/list")
+async def github_repo_list(request: Request):
+    require_auth(request)
+    github_token = request.cookies.get("github_token")
+    if not github_token:
+        raise HTTPException(status_code=401, detail="GitHub not connected.")
+
+    response = requests.get(
+        "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator",
+        headers={
+            "Authorization": f"Bearer {github_token}",
+            "Accept": "application/vnd.github+json"
+        },
+        timeout=10
+    )
+    repos = response.json()
+    if not isinstance(repos, list):
+        raise HTTPException(status_code=400, detail="Failed to fetch repos from GitHub.")
+
+    return [{"full_name": r["full_name"], "private": r["private"]} for r in repos]
+
 
 @app.get("/auth/github/status")
 async def github_status(request: Request):

@@ -119,6 +119,20 @@ def require_auth(request: Request) -> dict:
 def get_github_token(request: Request) -> str | None:
     return request.cookies.get("github_token")
 
+def get_user_provider(access_token: str) -> str:
+    """Returns the OAuth provider used (github, google, email)."""
+    response = requests.get(
+        f"{SUPABASE_URL}/auth/v1/user",
+        headers={**HEADERS, "Authorization": f"Bearer {access_token}"},
+        timeout=10
+    )
+    if response.status_code == 200:
+        data = response.json()
+        identities = data.get("identities", [])
+        if identities:
+            return identities[0].get("provider", "email")
+    return "email"
+
 if __name__ == "__main__":
     print("Auth module loaded successfully.")
     print(f"Supabase URL: {SUPABASE_URL}")

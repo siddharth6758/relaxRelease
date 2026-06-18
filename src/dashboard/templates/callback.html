@@ -6,11 +6,15 @@
   const refresh_token = params.get("refresh_token");
   const provider_token = params.get("provider_token");
 
+  // Detect provider from the URL query string (Supabase adds it)
+  const urlParams = new URLSearchParams(window.location.search);
+  const provider = urlParams.get("provider") || "";
+
   fetch("/auth/session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ access_token, refresh_token, provider_token })
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_token, refresh_token, provider_token, provider })
   }).then(() => {
-    window.location.href = "/";
+      window.location.href = "/";
   });
 </script>
