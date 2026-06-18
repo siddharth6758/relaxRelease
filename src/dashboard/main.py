@@ -430,14 +430,31 @@ async def remove_repo(request: Request):
 
 @app.get("/auth/github/connect")
 async def github_connect(request: Request):
-    """Triggers GitHub OAuth purely to get provider_token for webhook management."""
+    require_auth(request)
     url = (
         f"{SUPABASE_URL}/auth/v1/authorize"
         f"?provider=github"
         f"&scopes=repo,admin:repo_hook"
-        f"&redirect_to={os.environ.get('APP_URL')}/auth/callback"
+        f"&redirect_to={os.environ.get('APP_URL')}/auth/github/callback"
     )
     return RedirectResponse(url)
+
+
+@app.get("/auth/github/callback")
+async def github_callback(request: Request):
+    """Dedicated callback for GitHub connect — always stores provider_token as github_token."""
+    return templates.TemplateResponse("github_callback.html", {"request": request})
+
+
+@app.post("/auth/github/store-token")
+async def store_github_token(data: dict, response: Response):
+    if not data.get("provider_token"):
+        raise HTTPException(status_code=400, detail="No token provided.")
+    response.set_cookie(
+        "github_token", data["provider_token"],
+        httponly=True, secure=True, samesite="lax", max_age=604800
+    )
+    return {"ok": True}
 
 
 @app.get("/repos/github/list")

@@ -1,0 +1,19 @@
+<script>
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+
+  const provider_token = params.get("provider_token");
+  const access_token = params.get("access_token");
+
+  if (provider_token) {
+    fetch("/auth/github/store-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider_token, access_token })
+    }).then(() => {
+      window.location.href = "/";
+    });
+  } else {
+    window.location.href = "/?error=github_connect_failed";
+  }
+</script>
