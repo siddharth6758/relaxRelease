@@ -162,13 +162,12 @@ async def billing_plan(request: Request, upgraded: int = 0):
     user = get_current_user(request)
     plan = ""
     limits = {}
+    if user:
+        plan = get_user_plan(user["id"])
+        limits = PLAN_LIMITS[plan]
+        sub = get_subscription(user["id"])
     # if not user:
     #     return RedirectResponse("/login", status_code=302)
-
-    # plan = get_user_plan(user["id"])
-    # limits = PLAN_LIMITS[plan]
-
-    sub = get_subscription(user["id"])
     return templates.TemplateResponse("billing.html", {
         "request": request,
         "user": user,
