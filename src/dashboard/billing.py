@@ -162,6 +162,7 @@ async def billing_plan(request: Request, upgraded: int = 0):
     user = get_current_user(request)
     plan = ""
     limits = {}
+    sub = None
     if user:
         plan = get_user_plan(user["id"])
         limits = PLAN_LIMITS[plan]
