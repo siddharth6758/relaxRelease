@@ -72,7 +72,7 @@ async def index(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
-    releases = get_all_releases()
+    releases = get_all_releases(user["id"])
     user["plan"] = get_user_plan(user["id"])
     return templates.TemplateResponse("index.html", {
         "request": request,
@@ -484,6 +484,19 @@ async def github_status(request: Request):
     require_auth(request)
     token = request.cookies.get("github_token")
     return {"connected": bool(token)}
+
+@app.get("/terms")
+async def terms(request: Request):
+    return templates.TemplateResponse("terms.html", {"request": request})
+
+@app.get("/privacy")
+async def privacy(request: Request):
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+@app.get("/refund")
+async def refund(request: Request):
+    return templates.TemplateResponse("refund.html", {"request": request})
+
 
 if __name__ == "__main__":
     import uvicorn
