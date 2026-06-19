@@ -29,10 +29,12 @@
                 {% endif %}
             </div>
         </div>
+        {% if limits %}
         <div class="text-right text-sm text-gray-400">
             <div>Repos: <span class="text-white font-medium">{{ limits.repos if limits.repos < 100 else "Unlimited" }}</span></div>
             <div>Releases/mo: <span class="text-white font-medium">{{ limits.releases if limits.releases < 100 else "Unlimited" }}</span></div>
         </div>
+        {% endif %}
         {% if plan != "free" %}
         <p class="text-gray-500 text-xs mt-3">
             ⏱ Access expires: <span class="text-gray-300">{{ expires_at.strftime('%b %d, %Y') if expires_at else 'N/A' }}</span>
