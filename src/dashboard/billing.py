@@ -160,11 +160,13 @@ async def billing_plan(request: Request, upgraded: int = 0):
     templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
     user = get_current_user(request)
+    plan = ""
+    limits = {}
     # if not user:
     #     return RedirectResponse("/login", status_code=302)
 
-    plan = get_user_plan(user["id"])
-    limits = PLAN_LIMITS[plan]
+    # plan = get_user_plan(user["id"])
+    # limits = PLAN_LIMITS[plan]
 
     sub = get_subscription(user["id"])
     return templates.TemplateResponse("billing.html", {
