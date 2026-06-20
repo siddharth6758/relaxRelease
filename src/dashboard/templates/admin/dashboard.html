@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-6 py-10">
+    <h1 class="text-2xl font-bold text-white mb-1">Admin Dashboard</h1>
+    <p class="text-gray-500 text-sm mb-10">Logged in as {{ user["email"] }}</p>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+            <p class="text-gray-400 text-sm">Total Releases</p>
+            <p class="text-white text-2xl font-bold mt-1">{{ stats.total_releases }}</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+            <p class="text-gray-400 text-sm">Open Tickets</p>
+            <p class="text-white text-2xl font-bold mt-1">{{ stats.open_tickets }}</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+            <p class="text-gray-400 text-sm">Subscriptions</p>
+            <p class="text-white text-2xl font-bold mt-1">{{ stats.total_subscriptions }}</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+            <p class="text-gray-400 text-sm">Active Plans</p>
+            <p class="text-white text-2xl font-bold mt-1">{{ stats.active_subscriptions }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <a href="/admin/users" class="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-indigo-600 transition text-center">
+            <p class="text-white font-medium">Users</p>
+        </a>
+        <a href="/admin/tickets" class="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-indigo-600 transition text-center">
+            <p class="text-white font-medium">Tickets</p>
+        </a>
+        <a href="/admin/subscriptions" class="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-indigo-600 transition text-center">
+            <p class="text-white font-medium">Subscriptions</p>
+        </a>
+        <a href="/admin/releases" class="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-indigo-600 transition text-center">
+            <p class="text-white font-medium">Releases</p>
+        </a>
+    </div>
+</div>
+{% endblock %}

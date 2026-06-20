@@ -116,6 +116,14 @@ def require_auth(request: Request) -> dict:
         )
     return user
 
+def require_admin(request: Request) -> dict:
+    """Protects admin routes — raises 403 if not admin."""
+    user = require_auth(request)
+    admin_email = os.environ.get("SITE_ADMIN_EMAIL")
+    if user["email"] != admin_email:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return user
+
 def get_github_token(request: Request) -> str | None:
     return request.cookies.get("github_token")
 

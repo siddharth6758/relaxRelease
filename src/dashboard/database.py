@@ -1,6 +1,7 @@
 import os
 import enum
 import uuid
+import resend
 from datetime import datetime, timezone
 from sqlalchemy import create_engine, Column, String, DateTime, Text, Integer, Boolean, BigInteger, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
@@ -10,6 +11,8 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
+
+resend.api_key = os.environ.get("RESEND_API_KEY")
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
@@ -223,7 +226,7 @@ def upload_ticket_images(ticket_id: str, files: list) -> None:
     finally:
         db.close()
 
-def create_ticket(user_id: str, subject: str, message: str) -> Ticket:
+def create_ticket(user_id: str, subject: str, message: str, user_email: str) -> Ticket:
     db = SessionLocal()
     try:
         ticket = Ticket(
@@ -235,6 +238,8 @@ def create_ticket(user_id: str, subject: str, message: str) -> Ticket:
         db.add(ticket)
         db.commit()
         db.refresh(ticket)
+        # Notify admin
+        send_ticket_alert_to_admin(str(ticket.id), subject, message, user_email)
         return ticket
     finally:
         db.close()
@@ -498,6 +503,121 @@ def get_expired_paid_users() -> list:
     finally:
         db.close()
 
+#----------------------------------------------------------------------------
+# Resend email sender for admin and user
+#----------------------------------------------------------------------------
+
+def send_ticket_alert_to_admin(ticket_id: str, subject: str, message: str, user_email: str) -> None:
+    """Notify admin when a new ticket is raised."""
+    admin_email = os.environ.get("ADMIN_EMAIL")
+    if not admin_email:
+        return
+    resend.Emails.send({
+        "from": "RelaxRelease <onboarding@resend.dev>",
+        "to": admin_email,
+        "subject": f"New Support Ticket: {subject}",
+        "html": f"""
+            <h2>New Support Ticket</h2>
+            <p><strong>From:</strong> {user_email}</p>
+            <p><strong>Subject:</strong> {subject}</p>
+            <p><strong>Message:</strong></p>
+            <p>{message}</p>
+            <br>
+            <a href="{os.environ.get('APP_URL')}/admin/tickets/{ticket_id}">View in Admin Panel</a>
+        """
+    })
+
+def send_ticket_reply_to_user(user_email: str, subject: str, reply_message: str, ticket_id: str) -> None:
+    """Notify user when admin replies to their ticket."""
+    resend.Emails.send({
+        "from": "RelaxRelease <onboarding@resend.dev>",
+        "to": user_email,
+        "subject": f"Re: {subject}",
+        "html": f"""
+            <h2>You have a reply on your support ticket</h2>
+            <p><strong>Subject:</strong> {subject}</p>
+            <p><strong>Reply:</strong></p>
+            <p>{reply_message}</p>
+            <br>
+            <a href="{os.environ.get('APP_URL')}/tickets/{ticket_id}">View Ticket</a>
+        """
+    })
+
+def get_all_users() -> list:
+    """Fetch all users from Supabase auth via service role."""
+    supabase = get_supabase()
+    response = supabase.auth.admin.list_users()
+    return response
+
+def get_all_tickets_admin() -> list:
+    db = SessionLocal()
+    try:
+        return db.query(Ticket).options(
+            joinedload(Ticket.images),
+            joinedload(Ticket.replies)
+        ).order_by(Ticket.created_at.desc()).all()
+    finally:
+        db.close()
+
+def get_ticket_admin(ticket_id: str) -> Ticket | None:
+    db = SessionLocal()
+    try:
+        return db.query(Ticket).options(
+            joinedload(Ticket.images),
+            joinedload(Ticket.replies)
+        ).filter(
+            Ticket.id == uuid.UUID(ticket_id)
+        ).first()
+    finally:
+        db.close()
+
+def reply_to_ticket(ticket_id: str, message: str) -> TicketReply:
+    db = SessionLocal()
+    try:
+        reply = TicketReply(
+            ticket_id=uuid.UUID(ticket_id),
+            sender="admin",
+            message=message
+        )
+        db.add(reply)
+        db.commit()
+        db.refresh(reply)
+        return reply
+    finally:
+        db.close()
+
+def update_ticket_status(ticket_id: str, status: str) -> None:
+    db = SessionLocal()
+    try:
+        ticket = db.query(Ticket).filter(Ticket.id == uuid.UUID(ticket_id)).first()
+        if ticket:
+            ticket.status = status
+            db.commit()
+    finally:
+        db.close()
+
+def get_all_subscriptions_admin() -> list:
+    db = SessionLocal()
+    try:
+        return db.query(Subscription).order_by(Subscription.created_at.desc()).all()
+    finally:
+        db.close()
+
+def get_admin_stats() -> dict:
+    db = SessionLocal()
+    try:
+        total_releases = db.query(Release).count()
+        open_tickets = db.query(Ticket).filter(Ticket.status == "open").count()
+        total_subscriptions = db.query(Subscription).count()
+        active_subscriptions = db.query(Subscription).filter(Subscription.status == "active").count()
+        return {
+            "total_releases": total_releases,
+            "open_tickets": open_tickets,
+            "total_subscriptions": total_subscriptions,
+            "active_subscriptions": active_subscriptions,
+        }
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     init_db()

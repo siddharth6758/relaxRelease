@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from .auth import (
     sign_in, sign_up, sign_out,
     get_oauth_url, get_user,
-    get_current_user, require_auth, get_github_token, get_user_provider
+    get_current_user, require_auth, get_github_token, get_user_provider, require_admin
 )
 from .billing import router as billing_router
 from dotenv import load_dotenv
@@ -29,7 +29,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dashboard.database import (
     init_db, save_release, get_all_releases, get_release_by_id,
-    check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription, add_repository, list_repositories, delete_repository, get_user_plan, get_user_id_by_repo, create_ticket, get_ticket_by_id, get_tickets_by_user, upload_ticket_images
+    check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription, add_repository, list_repositories, delete_repository, get_user_plan, get_user_id_by_repo, create_ticket, get_ticket_by_id, get_tickets_by_user, upload_ticket_images, get_all_tickets_admin, get_ticket_admin, reply_to_ticket, update_ticket_status,
+    get_all_subscriptions_admin, get_admin_stats, get_all_users, send_ticket_reply_to_user, get_supabase
 )
 from agent.classifier import classify_release
 from agent.github_client import get_commits_between_tags, create_release_draft, create_webhook, delete_webhook
@@ -521,7 +522,7 @@ async def ticket_create(
     images: List[UploadFile] = File(default=[])
 ):
     user = require_auth(request)
-    ticket = create_ticket(user["id"], subject, message)
+    ticket = create_ticket(user["id"], subject, message, user["email"])
     if images:
         upload_ticket_images(str(ticket.id), images)
     return RedirectResponse(f"/tickets/{ticket.id}", status_code=303)
@@ -542,6 +543,82 @@ async def ticket_detail(request: Request, ticket_id: str):
         "ticket": ticket
     })
 
+@app.get("/admin")
+async def admin_dashboard(request: Request):
+    user = require_admin(request)
+    stats = get_admin_stats()
+    return templates.TemplateResponse("admin/dashboard.html", {
+        "request": request,
+        "user": user,
+        "stats": stats
+    })
+
+@app.get("/admin/users")
+async def admin_users(request: Request):
+    user = require_admin(request)
+    users = get_all_users()
+    return templates.TemplateResponse("admin/users.html", {
+        "request": request,
+        "user": user,
+        "users": users
+    })
+
+@app.get("/admin/subscriptions")
+async def admin_subscriptions(request: Request):
+    user = require_admin(request)
+    subscriptions = get_all_subscriptions_admin()
+    return templates.TemplateResponse("admin/subscriptions.html", {
+        "request": request,
+        "user": user,
+        "subscriptions": subscriptions
+    })
+
+@app.get("/admin/tickets")
+async def admin_tickets(request: Request):
+    user = require_admin(request)
+    tickets = get_all_tickets_admin()
+    return templates.TemplateResponse("admin/tickets.html", {
+        "request": request,
+        "user": user,
+        "tickets": tickets
+    })
+
+@app.get("/admin/tickets/{ticket_id}")
+async def admin_ticket_detail(request: Request, ticket_id: str):
+    user = require_admin(request)
+    try:
+        uuid.UUID(ticket_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = get_ticket_admin(ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return templates.TemplateResponse("admin/ticket_detail.html", {
+        "request": request,
+        "user": user,
+        "ticket": ticket
+    })
+
+@app.post("/admin/tickets/{ticket_id}/reply")
+async def admin_ticket_reply(
+    request: Request,
+    ticket_id: str,
+    message: str = Form(...),
+    status: str = Form(...)
+):
+    user = require_admin(request)
+    ticket = get_ticket_admin(ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    reply_to_ticket(ticket_id, message)
+    update_ticket_status(ticket_id, status)
+    # # get user email from supabase
+    # supabase = get_supabase()
+    # ticket_user = supabase.auth.admin.get_user_by_id(str(ticket.user_id))
+    # user_email = ticket_user.user.email if ticket_user else None
+    # if user_email:
+    #     send_ticket_reply_to_user(user_email, ticket.subject, message, ticket_id)
+    return RedirectResponse(f"/admin/tickets/{ticket_id}", status_code=303)
 
 if __name__ == "__main__":
     import uvicorn
