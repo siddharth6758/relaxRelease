@@ -4,13 +4,14 @@ import hmac
 import hashlib
 import sys
 import requests
+import uuid
 from pathlib import Path
+from typing import List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, HTTPException, Response
+from fastapi import FastAPI, Request, HTTPException, Response, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from fastapi import Form
 from .auth import (
     sign_in, sign_up, sign_out,
     get_oauth_url, get_user,
@@ -28,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dashboard.database import (
     init_db, save_release, get_all_releases, get_release_by_id,
-    check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription, add_repository, list_repositories, delete_repository, get_user_plan
+    check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription, add_repository, list_repositories, delete_repository, get_user_plan, get_user_id_by_repo, create_ticket, get_ticket_by_id, get_tickets_by_user, upload_ticket_images
 )
 from agent.classifier import classify_release
 from agent.github_client import get_commits_between_tags, create_release_draft, create_webhook, delete_webhook
@@ -164,10 +165,7 @@ async def webhook(request: Request):
 
     print(f"✅ Tag received: {tag} on {repo}")
 
-    # Resolve user_id from webhook payload (sender login → match release owner)
-    # For now we use a single-owner model: GITHUB_REPOSITORY owner
-    user_id = payload.get("sender", {}).get("id")
-    user_id = str(user_id) if user_id else None
+    user_id = get_user_id_by_repo(repo)
 
     # Run agent in background
     import threading
@@ -496,6 +494,53 @@ async def privacy(request: Request):
 @app.get("/refund")
 async def refund(request: Request):
     return templates.TemplateResponse("refund.html", {"request": request})
+
+@app.get("/tickets")
+async def tickets_list(request: Request):
+    user = require_auth(request)
+    tickets = get_tickets_by_user(user["id"])
+    return templates.TemplateResponse("tickets/list.html", {
+        "request": request,
+        "user": user,
+        "tickets": tickets
+    })
+
+@app.get("/tickets/new")
+async def ticket_new(request: Request):
+    user = require_auth(request)
+    return templates.TemplateResponse("tickets/new.html", {
+        "request": request,
+        "user": user
+    })
+
+@app.post("/tickets/new")
+async def ticket_create(
+    request: Request,
+    subject: str = Form(...),
+    message: str = Form(...),
+    images: List[UploadFile] = File(default=[])
+):
+    user = require_auth(request)
+    ticket = create_ticket(user["id"], subject, message)
+    if images:
+        upload_ticket_images(str(ticket.id), images)
+    return RedirectResponse(f"/tickets/{ticket.id}", status_code=303)
+
+@app.get("/tickets/{ticket_id}")
+async def ticket_detail(request: Request, ticket_id: str):
+    user = require_auth(request)
+    try:
+        uuid.UUID(ticket_id)  # validate early
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = get_ticket_by_id(ticket_id, user["id"])
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return templates.TemplateResponse("tickets/detail.html", {
+        "request": request,
+        "user": user,
+        "ticket": ticket
+    })
 
 
 if __name__ == "__main__":

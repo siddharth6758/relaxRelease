@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-6 py-10">
+    <a href="/tickets" class="text-gray-500 text-sm hover:text-gray-300 transition">← Back to tickets</a>
+
+    <div class="mt-6 mb-8">
+        <div class="flex justify-between items-center">
+            <h1 class="text-xl font-bold text-white">{{ ticket.subject }}</h1>
+            <span class="text-xs px-2 py-1 rounded-full
+                {% if ticket.status == 'open' %}bg-yellow-900 text-yellow-300
+                {% elif ticket.status == 'in_progress' %}bg-blue-900 text-blue-300
+                {% else %}bg-gray-800 text-gray-400{% endif %}">
+                {{ ticket.status.replace('_', ' ').title() }}
+            </span>
+        </div>
+        <p class="text-gray-500 text-xs mt-1">Opened {{ ticket.created_at.strftime('%b %d, %Y at %H:%M') }}</p>
+    </div>
+
+    <!-- Thread -->
+    <div class="space-y-4">
+        <!-- Original message -->
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-5 py-4">
+            <p class="text-xs text-indigo-400 mb-2 font-medium">You</p>
+            <p class="text-gray-300 text-sm whitespace-pre-wrap">{{ ticket.message }}</p>
+            {% if ticket.images %}
+            <div class="flex flex-wrap gap-3 mt-4">
+                {% for img in ticket.images %}
+                <a href="{{ img.image_url }}" target="_blank">
+                    <img src="{{ img.image_url }}" class="h-32 rounded-lg border border-gray-700 object-cover hover:opacity-80 transition" />
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Replies -->
+        {% for reply in ticket.replies %}
+        <div class="rounded-xl px-5 py-4 border
+            {% if reply.sender == 'admin' %}bg-gray-800 border-indigo-800
+            {% else %}bg-gray-900 border-gray-800{% endif %}">
+            <p class="text-xs mb-2 font-medium
+                {% if reply.sender == 'admin' %}text-indigo-400{% else %}text-gray-400{% endif %}">
+                {{ 'Support' if reply.sender == 'admin' else 'You' }}
+            </p>
+            <p class="text-gray-300 text-sm whitespace-pre-wrap">{{ reply.message }}</p>
+            <p class="text-gray-600 text-xs mt-2">{{ reply.created_at.strftime('%b %d, %Y at %H:%M') }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if ticket.status != 'closed' %}
+    <div class="mt-6 text-sm text-gray-500 italic">
+        We'll reply to this ticket soon. You'll be notified by email.
+    </div>
+    {% else %}
+    <div class="mt-6 text-sm text-gray-500 italic">
+        This ticket is closed.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

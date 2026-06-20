@@ -1,9 +1,11 @@
 import os
+import enum
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, Column, String, DateTime, Text, Integer, Boolean, BigInteger
+from sqlalchemy import create_engine, Column, String, DateTime, Text, Integer, Boolean, BigInteger, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship, joinedload
+from supabase import create_client
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -15,6 +17,13 @@ if not DATABASE_URL:
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# initialise Supabase client
+def get_supabase():
+    return create_client(
+        os.environ.get("SUPABASE_URL"),
+        os.environ.get("SUPABASE_SERVICE_KEY")
+    )
 
 # SQLAlchemy setup with connection pooling and SSL for Supabase
 engine = create_engine(
@@ -85,6 +94,38 @@ class Repository(Base):
     webhook_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
+class TicketStatus(str, enum.Enum):
+    open = "open"
+    in_progress = "in_progress"
+    closed = "closed"
+
+class Ticket(Base):
+    __tablename__ = "tickets"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), nullable=False)
+    subject = Column(Text, nullable=False)
+    message = Column(Text, nullable=False)
+    status = Column(String, default="open")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    replies = relationship("TicketReply", back_populates="ticket", order_by="TicketReply.created_at")
+    images = relationship("TicketImage", backref="ticket_ref", order_by="TicketImage.created_at")
+
+class TicketReply(Base):
+    __tablename__ = "ticket_replies"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=False)
+    sender = Column(String, nullable=False)  # "user" or "admin"
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    ticket = relationship("Ticket", back_populates="replies")
+
+class TicketImage(Base):
+    __tablename__ = "ticket_images"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=False)
+    image_url = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
 # ---------------------------------------------------------------------------
 # DB init
 # ---------------------------------------------------------------------------
@@ -147,6 +188,80 @@ def get_release_by_id(release_id: int) -> Release:
     finally:
         db.close()
 
+
+# ---------------------------------------------------------------------------
+# Ticket helpers
+# ---------------------------------------------------------------------------
+
+def upload_ticket_images(ticket_id: str, files: list) -> None:
+    """Upload images to Supabase Storage and save URLs to ticket_images table."""
+    supabase = get_supabase()
+    db = SessionLocal()
+    try:
+        for file in files:
+            if not file.filename:
+                continue
+            ext = file.filename.rsplit(".", 1)[-1].lower()
+            if ext not in ["jpg", "jpeg", "png", "gif", "webp"]:
+                continue
+            contents = file.file.read()
+            if len(contents) > 5 * 1024 * 1024:  # 5MB limit
+                continue
+            path = f"{ticket_id}/{uuid.uuid4()}.{ext}"
+            supabase.storage.from_("ticket-images").upload(
+                path,
+                contents,
+                {"content-type": file.content_type}
+            )
+            public_url = f"{os.environ.get('SUPABASE_URL')}/storage/v1/object/public/ticket-images/{path}"
+            image = TicketImage(
+                ticket_id=uuid.UUID(ticket_id),
+                image_url=public_url
+            )
+            db.add(image)
+        db.commit()
+    finally:
+        db.close()
+
+def create_ticket(user_id: str, subject: str, message: str) -> Ticket:
+    db = SessionLocal()
+    try:
+        ticket = Ticket(
+            user_id=uuid.UUID(user_id),
+            subject=subject,
+            message=message,
+            status="open"
+        )
+        db.add(ticket)
+        db.commit()
+        db.refresh(ticket)
+        return ticket
+    finally:
+        db.close()
+
+def get_tickets_by_user(user_id: str) -> list:
+    db = SessionLocal()
+    try:
+        return db.query(Ticket).options(
+            joinedload(Ticket.images)
+        ).filter(
+            Ticket.user_id == uuid.UUID(user_id)
+        ).order_by(Ticket.created_at.desc()).all()
+    finally:
+        db.close()
+
+def get_ticket_by_id(ticket_id: str, user_id: str) -> Ticket | None:
+    db = SessionLocal()
+    try:
+        return db.query(Ticket).options(
+            joinedload(Ticket.images),
+            joinedload(Ticket.replies)
+        ).filter(
+            Ticket.id == uuid.UUID(ticket_id),
+            Ticket.user_id == uuid.UUID(user_id)
+        ).first()
+    finally:
+        db.close()
 
 # ---------------------------------------------------------------------------
 # Subscription helpers
@@ -268,6 +383,16 @@ def delete_repository(user_id: str, repo_full_name: str) -> Repository | None:
 # ---------------------------------------------------------------------------
 # Plan enforcement helpers
 # ---------------------------------------------------------------------------
+
+def get_user_id_by_repo(repo_full_name: str) -> str | None:
+    db = SessionLocal()
+    try:
+        record = db.query(Repository).filter(
+            Repository.repo_full_name == repo_full_name
+        ).first()
+        return str(record.user_id) if record else None
+    finally:
+        db.close()
 
 def get_user_repo_count(user_id: str) -> int:
     """Count distinct repos this user has released from."""

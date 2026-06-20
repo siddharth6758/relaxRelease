@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-xl mx-auto px-6 py-10">
+    <h1 class="text-2xl font-bold text-white mb-8">Raise a Ticket</h1>
+    <form method="POST" action="/tickets/new" enctype="multipart/form-data" class="space-y-5">
+        <div>
+            <label class="block text-sm text-gray-400 mb-1">Subject</label>
+            <input type="text" name="subject" required
+                class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+                placeholder="Brief description of your issue" />
+        </div>
+        <div>
+            <label class="block text-sm text-gray-400 mb-1">Message</label>
+            <textarea name="message" rows="6" required
+                class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+                placeholder="Describe your issue in detail..."></textarea>
+        </div>
+        <div>
+            <label class="block text-sm text-gray-400 mb-1">Screenshots <span class="text-gray-600">(optional, max 3, 5MB each)</span></label>
+            <input type="file" name="images" multiple accept="image/*"
+                class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-800 file:text-gray-300 hover:file:bg-gray-700" />
+        </div>
+        <button type="submit"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition">
+            Submit Ticket
+        </button>
+    </form>
+</div>
+{% endblock %}
