@@ -48,15 +48,15 @@
         }
         .nav-logo { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--blue); letter-spacing: -0.01em; }
         .nav-links { display: flex; gap: 1.5rem; margin-left: auto; align-items: center; }
-        .nav-links a { font-size: 13px; color: var(--muted); transition: color 0.15s; }
+        .nav-links a { font-size: 13px; transition: color 0.15s; }
         .nav-links a:hover { color: var(--text); }
         .nav-cta {
-            background: var(--blue); color: #fff;
+            background: var(--blue);
             font-size: 13px; font-weight: 500;
             padding: 6px 16px; border-radius: 6px;
             transition: opacity 0.15s;
         }
-        .nav-cta:hover { opacity: 0.85; color: #fff; }
+        .nav-cta:hover { opacity: 0.85; background: var(--blue) }
 
         /* HERO */
         .hero {
@@ -281,7 +281,7 @@
     <div class="nav-links">
         <a href="#how">How it works</a>
         <a href="#pricing">Pricing</a>
-        <a href="/login" class="nav-cta text-white">Get started free</a>
+        <a href="/login" class="nav-cta">Get started free</a>
     </div>
 </nav>
 
