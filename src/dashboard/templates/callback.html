@@ -12,6 +12,6 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ access_token, refresh_token, provider_token, provider })
   }).then(() => {
-      window.location.href = "/";
+      window.location.href = "/dashboard";
   });
 </script>

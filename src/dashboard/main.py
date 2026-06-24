@@ -70,6 +70,10 @@ app.include_router(billing_router)
 
 
 @app.get("/", response_class=HTMLResponse)
+async def landing(request: Request):
+    return templates.TemplateResponse("landing.html", {"request": request})
+
+@app.get("/dashboard", response_class=HTMLResponse)
 async def index(request: Request):
     user = get_current_user(request)
     if not user:
@@ -271,7 +275,7 @@ def run_agent_background(repo: str, new_tag: str, user_id: str = None):
 async def login_page(request: Request, error: str = None):
     user = get_current_user(request)
     if user:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/dashboard", status_code=302)
     return templates.TemplateResponse("login.html", {
         "request": request,
         "user": None,
@@ -287,7 +291,7 @@ async def login(
 ):
     result = sign_in(email, password)
     if "access_token" in result:
-        response = RedirectResponse("/", status_code=302)
+        response = RedirectResponse("/dashboard", status_code=302)
         response.set_cookie(
             "access_token",
             result["access_token"],
@@ -313,7 +317,7 @@ async def login(
 async def signup_page(request: Request, error: str = None, success: str = None):
     user = get_current_user(request)
     if user:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/dashboard", status_code=302)
     return templates.TemplateResponse("signup.html", {
         "request": request,
         "user": None,
