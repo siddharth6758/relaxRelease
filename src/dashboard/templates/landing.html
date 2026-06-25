@@ -6,507 +6,285 @@
     <title>RelaxRelease — AI-powered GitHub Release Notes</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg:        '#080b10',
+                        surface:   '#0e1117',
+                        border:    '#1c2230',
+                        'border-hi': '#2a3347',
+                        muted:     '#64748b',
+                        dim:       '#334155',
+                        'blue-dim':'#1d3a6b',
+                        'blue-border': '#2a4a8a',
+                        gray: { 950: '#0a0a0f' }
+                    },
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        :root {
-            --bg:        #080b10;
-            --surface:   #0e1117;
-            --border:    #1c2230;
-            --border-hi: #2a3347;
-            --text:      #e2e8f0;
-            --muted:     #64748b;
-            --dim:       #334155;
-            --blue:      #3b82f6;
-            --blue-dim:  #1d3a6b;
-            --green:     #22c55e;
-            --mono:      'JetBrains Mono', monospace;
-            --sans:      'Inter', system-ui, sans-serif;
-        }
-
         html { scroll-behavior: smooth; }
-
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: var(--sans);
-            font-size: 15px;
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        a { color: inherit; text-decoration: none; }
-
-        /* NAV */
-        nav {
-            position: sticky; top: 0; z-index: 50;
-            display: flex; align-items: center; gap: 2rem;
-            padding: 0 2rem; height: 56px;
-            background: rgba(8,11,16,0.85);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border);
-        }
-        .nav-logo { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--blue); letter-spacing: -0.01em; }
-        .nav-links { display: flex; gap: 1.5rem; margin-left: auto; align-items: center; }
-        .nav-links a { font-size: 13px; transition: color 0.15s; }
-        .nav-links a:hover { color: var(--text); }
-        .nav-cta {
-            background: var(--blue);
-            font-size: 13px; font-weight: 500;
-            padding: 6px 16px; border-radius: 6px;
-            transition: opacity 0.15s;
-        }
-        .nav-cta:hover { opacity: 0.85; background: var(--blue) }
-
-        /* HERO */
-        .hero {
-            max-width: 720px; margin: 0 auto;
-            padding: 96px 2rem 80px;
-            text-align: center;
-        }
-        .hero-badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            font-family: var(--mono); font-size: 11px; font-weight: 500;
-            color: var(--blue); background: var(--blue-dim);
-            border: 1px solid #2a4a8a; border-radius: 4px;
-            padding: 4px 10px; margin-bottom: 28px; letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
-        .hero-badge span { width: 6px; height: 6px; background: var(--blue); border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+        body { -webkit-font-smoothing: antialiased; }
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
-
-        h1 {
-            font-size: clamp(2rem, 5vw, 3.25rem);
-            font-weight: 600; line-height: 1.15;
-            letter-spacing: -0.03em;
-            color: #f8fafc;
-            margin-bottom: 20px;
-        }
-        h1 em { font-style: normal; color: var(--blue); }
-
-        .hero-sub {
-            font-size: 16px; color: var(--muted);
-            max-width: 480px; margin: 0 auto 36px;
-            line-height: 1.7;
-        }
-
-        .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-        .btn-primary {
-            background: var(--blue); color: #fff;
-            font-size: 14px; font-weight: 500;
-            padding: 10px 24px; border-radius: 7px;
-            transition: opacity 0.15s;
-        }
-        .btn-primary:hover { opacity: 0.85; }
-        .btn-ghost {
-            background: var(--surface); color: var(--text);
-            border: 1px solid var(--border-hi);
-            font-size: 14px; font-weight: 500;
-            padding: 10px 24px; border-radius: 7px;
-            transition: border-color 0.15s;
-        }
-        .btn-ghost:hover { border-color: var(--muted); }
-
-        /* TERMINAL */
-        .terminal-wrap { max-width: 640px; margin: 64px auto 0; padding: 0 2rem; }
-        .terminal {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            overflow: hidden;
-            font-family: var(--mono);
-            font-size: 13px;
-        }
-        .terminal-bar {
-            display: flex; align-items: center; gap: 6px;
-            padding: 10px 14px;
-            background: #0a0d14;
-            border-bottom: 1px solid var(--border);
-        }
-        .dot { width: 10px; height: 10px; border-radius: 50%; }
-        .dot-r { background: #ff5f56; }
-        .dot-y { background: #ffbd2e; }
-        .dot-g { background: #27c93f; }
-        .terminal-title { font-size: 11px; color: var(--muted); margin-left: auto; margin-right: auto; }
-        .terminal-body { padding: 18px 20px; line-height: 2; }
-        .t-dim   { color: var(--dim); }
-        .t-muted { color: var(--muted); }
-        .t-blue  { color: #60a5fa; }
-        .t-green { color: #4ade80; }
-        .t-white { color: #f1f5f9; }
-        .t-tag   { color: #f59e0b; }
-
-        /* HOW IT WORKS */
-        .section { max-width: 860px; margin: 0 auto; padding: 80px 2rem; }
-        .section-label {
-            font-family: var(--mono); font-size: 11px; font-weight: 500;
-            color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase;
-            margin-bottom: 12px;
-        }
-        .section-title {
-            font-size: clamp(1.4rem, 3vw, 1.9rem);
-            font-weight: 600; letter-spacing: -0.025em;
-            color: #f1f5f9; margin-bottom: 48px;
-        }
-
-        .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-        .step {
-            background: var(--surface);
-            padding: 28px 24px;
-        }
-        .step-num {
-            font-family: var(--mono); font-size: 11px;
-            color: var(--blue); margin-bottom: 12px; font-weight: 500;
-        }
-        .step h3 { font-size: 14px; font-weight: 600; color: #f1f5f9; margin-bottom: 6px; }
-        .step p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
-
-        /* FEATURES */
-        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
-        .feature {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 24px;
-            transition: border-color 0.2s;
-        }
-        .feature:hover { border-color: var(--border-hi); }
-        .feature-icon { font-size: 20px; margin-bottom: 12px; }
-        .feature h3 { font-size: 14px; font-weight: 600; color: #f1f5f9; margin-bottom: 6px; }
-        .feature p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
-
-        /* PRICING */
-        .pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
-        .plan {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 28px 24px;
-            display: flex; flex-direction: column;
-        }
-        .plan.featured {
-            border-color: var(--blue);
-            background: linear-gradient(160deg, #0e1825 0%, var(--surface) 100%);
-        }
-        .plan-badge {
-            font-family: var(--mono); font-size: 10px; font-weight: 500;
-            color: var(--blue); background: var(--blue-dim);
-            border: 1px solid #2a4a8a; border-radius: 4px;
-            padding: 2px 8px; display: inline-block;
-            margin-bottom: 16px; letter-spacing: 0.04em; text-transform: uppercase;
-            width: fit-content;
-        }
-        .plan-name { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; font-family: var(--mono); }
-        .plan-price { font-size: 2rem; font-weight: 600; color: #f1f5f9; letter-spacing: -0.03em; margin-bottom: 4px; }
-        .plan-price span { font-size: 14px; font-weight: 400; color: var(--muted); }
-        .plan-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
-        .plan-divider { height: 1px; background: var(--border); margin-bottom: 20px; }
-        .plan-features { list-style: none; display: flex; flex-direction: column; gap: 10px; flex: 1; }
-        .plan-features li { font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: flex-start; }
-        .plan-features li::before { content: '✓'; color: var(--green); font-weight: 600; flex-shrink: 0; margin-top: 1px; }
-        .plan-features li.no::before { content: '–'; color: var(--dim); }
-        .plan-features li.no { color: var(--dim); }
-        .plan-cta {
-            margin-top: 24px;
-            display: block; text-align: center;
-            background: var(--border); color: var(--text);
-            border: 1px solid var(--border-hi);
-            font-size: 13px; font-weight: 500;
-            padding: 9px 0; border-radius: 7px;
-            transition: background 0.15s, border-color 0.15s;
-        }
-        .plan-cta:hover { background: var(--border-hi); }
-        .plan.featured .plan-cta {
-            background: var(--blue); border-color: var(--blue); color: #fff;
-        }
-        .plan.featured .plan-cta:hover { opacity: 0.85; }
-
-        /* FAQ */
-        .faq { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-        .faq-item { border-bottom: 1px solid var(--border); background: var(--surface); }
-        .faq-item:last-child { border-bottom: none; }
-        .faq-q {
-            width: 100%; text-align: left;
-            background: none; border: none; cursor: pointer;
-            padding: 18px 24px;
-            font-size: 14px; font-weight: 500; color: #f1f5f9;
-            font-family: var(--sans);
-            display: flex; justify-content: space-between; align-items: center;
-            transition: background 0.15s;
-        }
-        .faq-q:hover { background: #0a0d14; }
-        .faq-arrow { color: var(--muted); font-size: 12px; transition: transform 0.2s; }
-        .faq-a { display: none; padding: 0 24px 18px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+        .badge-pulse { animation: pulse 2s infinite; }
+        .faq-a { display: none; }
         .faq-item.open .faq-a { display: block; }
         .faq-item.open .faq-arrow { transform: rotate(180deg); }
-
-        /* CTA FOOTER */
-        .cta-section {
-            max-width: 560px; margin: 0 auto;
-            padding: 80px 2rem 96px;
-            text-align: center;
-        }
-        .cta-section h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 600; letter-spacing: -0.025em; margin-bottom: 12px; }
-        .cta-section p { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
-
-        /* FOOTER */
-        footer {
-            border-top: 1px solid var(--border);
-            padding: 24px 2rem;
-            display: flex; align-items: center; justify-content: space-between;
-            flex-wrap: wrap; gap: 12px;
-            max-width: 860px; margin: 0 auto;
-        }
-        .footer-logo { font-family: var(--mono); font-size: 13px; color: var(--muted); }
-        .footer-links { display: flex; gap: 1.5rem; }
-        .footer-links a { font-size: 12px; color: var(--dim); transition: color 0.15s; }
-        .footer-links a:hover { color: var(--muted); }
-
-        /* DIVIDER */
-        .divider { height: 1px; background: var(--border); max-width: 860px; margin: 0 auto; }
-
-        @media (max-width: 600px) {
-            nav { padding: 0 1rem; }
-            .hero { padding: 64px 1rem 60px; }
-            .section { padding: 60px 1rem; }
-            footer { flex-direction: column; align-items: flex-start; }
-        }
+        .faq-arrow { transition: transform 0.2s; }
     </style>
 </head>
-<body>
+<body class="bg-bg text-slate-200 font-sans text-[15px] leading-relaxed">
 
 <!-- NAV -->
-<nav>
-    <span class="nav-logo">🚀 RelaxRelease</span>
-    <div class="nav-links">
-        <a href="#how">How it works</a>
-        <a href="#pricing">Pricing</a>
-        <a href="/login" class="nav-cta">Get started free</a>
+<nav class="sticky top-0 z-50 flex items-center gap-8 px-8 h-14 bg-[rgba(8,11,16,0.85)] backdrop-blur-md border-b border-border">
+    <span class="font-mono text-sm font-medium text-blue-500 tracking-tight">🚀 RelaxRelease</span>
+    <div class="flex gap-6 ml-auto items-center">
+        <a href="#how" class="text-[13px] text-muted hover:text-slate-200 transition-colors">How it works</a>
+        <a href="#pricing" class="text-[13px] text-muted hover:text-slate-200 transition-colors">Pricing</a>
+        <a href="/login" class="bg-blue-500 text-white text-[13px] font-medium px-4 py-1.5 rounded-md hover:opacity-85 transition-opacity">Get started free</a>
     </div>
 </nav>
 
 <!-- HERO -->
-<div class="hero">
-    <div class="hero-badge"><span></span> Now in early access</div>
-    <h1>Release notes that<br>write <em>themselves</em></h1>
-    <p class="hero-sub">Push a git tag. RelaxRelease reads your commits, understands the change, and publishes a professional GitHub release — in seconds.</p>
-    <div class="hero-actions">
-        <a href="/login" class="btn-primary">Start for free</a>
-        <a href="#how" class="btn-ghost">See how it works</a>
+<div class="max-w-2xl mx-auto px-8 pt-24 pb-20 text-center">
+    <div class="inline-flex items-center gap-1.5 font-mono text-[11px] font-medium text-blue-500 bg-blue-dim border border-blue-border rounded px-2.5 py-1 mb-7 uppercase tracking-widest">
+        <span class="w-1.5 h-1.5 bg-blue-500 rounded-full badge-pulse"></span>
+        Now in early access
+    </div>
+    <h1 class="text-[clamp(2rem,5vw,3.25rem)] font-semibold leading-[1.15] tracking-[-0.03em] text-slate-50 mb-5">
+        Release notes that<br>write <em class="not-italic text-blue-500">themselves</em>
+    </h1>
+    <p class="text-base text-muted max-w-sm mx-auto mb-9 leading-[1.7]">
+        Push a git tag. RelaxRelease reads your commits, understands the change, and publishes a professional GitHub release — in seconds.
+    </p>
+    <div class="flex gap-3 justify-center flex-wrap">
+        <a href="/login" class="bg-blue-500 text-white text-sm font-medium px-6 py-2.5 rounded-[7px] hover:opacity-85 transition-opacity">Start for free</a>
+        <a href="#how" class="bg-surface text-slate-200 border border-border-hi text-sm font-medium px-6 py-2.5 rounded-[7px] hover:border-muted transition-colors">See how it works</a>
     </div>
 </div>
 
 <!-- TERMINAL -->
-<div class="terminal-wrap">
-    <div class="terminal">
-        <div class="terminal-bar">
-            <div class="dot dot-r"></div>
-            <div class="dot dot-y"></div>
-            <div class="dot dot-g"></div>
-            <span class="terminal-title">terminal</span>
+<div class="max-w-xl mx-auto px-8">
+    <div class="bg-surface border border-border rounded-[10px] overflow-hidden font-mono text-[13px]">
+        <div class="flex items-center gap-1.5 px-3.5 py-2.5 bg-[#0a0d14] border-b border-border">
+            <div class="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></div>
+            <span class="text-[11px] text-muted mx-auto">terminal</span>
         </div>
-        <div class="terminal-body">
-            <div><span class="t-dim">$</span> <span class="t-white">git tag v2.1.0 &amp;&amp; git push origin v2.1.0</span></div>
-            <div><span class="t-muted">Pushing tag to origin...</span></div>
+        <div class="p-5 leading-loose">
+            <div><span class="text-dim">$</span> <span class="text-slate-100">git tag v2.1.0 &amp;&amp; git push origin v2.1.0</span></div>
+            <div><span class="text-muted">Pushing tag to origin...</span></div>
             <div>&nbsp;</div>
-            <div><span class="t-green">✓</span> <span class="t-muted">RelaxRelease detected </span><span class="t-tag">v2.1.0</span><span class="t-muted"> on </span><span class="t-blue">acme/api</span></div>
-            <div><span class="t-green">✓</span> <span class="t-muted">Analysed 14 commits since </span><span class="t-tag">v2.0.3</span></div>
-            <div><span class="t-green">✓</span> <span class="t-muted">Release notes generated</span></div>
-            <div><span class="t-green">✓</span> <span class="t-muted">GitHub draft created → </span><span class="t-blue">github.com/acme/api/releases</span></div>
+            <div><span class="text-green-400">✓</span> <span class="text-muted">RelaxRelease detected </span><span class="text-amber-400">v2.1.0</span><span class="text-muted"> on </span><span class="text-blue-400">acme/api</span></div>
+            <div><span class="text-green-400">✓</span> <span class="text-muted">Analysed 14 commits since </span><span class="text-amber-400">v2.0.3</span></div>
+            <div><span class="text-green-400">✓</span> <span class="text-muted">Release notes generated</span></div>
+            <div><span class="text-green-400">✓</span> <span class="text-muted">GitHub draft created → </span><span class="text-blue-400">github.com/acme/api/releases</span></div>
         </div>
     </div>
 </div>
 
-<div class="divider" style="margin-top:80px;"></div>
+<div class="h-px bg-border max-w-[860px] mx-auto mt-20"></div>
 
 <!-- HOW IT WORKS -->
-<div class="section" id="how">
-    <div class="section-label">How it works</div>
-    <div class="section-title">Three steps, zero effort</div>
-    <div class="steps">
-        <div class="step">
-            <div class="step-num">01</div>
-            <h3>Connect your repo</h3>
-            <p>Sign in with GitHub. RelaxRelease installs a webhook on any repository you choose — one click, nothing to configure.</p>
+<div class="max-w-[860px] mx-auto px-8 py-20" id="how">
+    <div class="font-mono text-[11px] font-medium text-muted tracking-[0.08em] uppercase mb-3">How it works</div>
+    <div class="text-[clamp(1.4rem,3vw,1.9rem)] font-semibold tracking-[-0.025em] text-slate-100 mb-12">Three steps, zero effort</div>
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-px bg-border border border-border rounded-[10px] overflow-hidden">
+        <div class="bg-surface p-7">
+            <div class="font-mono text-[11px] text-blue-500 mb-3 font-medium">01</div>
+            <h3 class="text-sm font-semibold text-slate-100 mb-1.5">Connect your repo</h3>
+            <p class="text-[13px] text-muted leading-relaxed">Sign in with GitHub. RelaxRelease installs a webhook on any repository you choose — one click, nothing to configure.</p>
         </div>
-        <div class="step">
-            <div class="step-num">02</div>
-            <h3>Push a version tag</h3>
-            <p>Tag your release as you normally would. RelaxRelease listens for the event and picks up automatically.</p>
+        <div class="bg-surface p-7">
+            <div class="font-mono text-[11px] text-blue-500 mb-3 font-medium">02</div>
+            <h3 class="text-sm font-semibold text-slate-100 mb-1.5">Push a version tag</h3>
+            <p class="text-[13px] text-muted leading-relaxed">Tag your release as you normally would. RelaxRelease listens for the event and picks up automatically.</p>
         </div>
-        <div class="step">
-            <div class="step-num">03</div>
-            <h3>Review the draft</h3>
-            <p>An AI-generated release is waiting in your GitHub Releases as a draft. Edit or publish — your call.</p>
+        <div class="bg-surface p-7">
+            <div class="font-mono text-[11px] text-blue-500 mb-3 font-medium">03</div>
+            <h3 class="text-sm font-semibold text-slate-100 mb-1.5">Review the draft</h3>
+            <p class="text-[13px] text-muted leading-relaxed">An AI-generated release is waiting in your GitHub Releases as a draft. Edit or publish — your call.</p>
         </div>
     </div>
 </div>
 
-<div class="divider"></div>
+<div class="h-px bg-border max-w-[860px] mx-auto"></div>
 
 <!-- FEATURES -->
-<div class="section">
-    <div class="section-label">Features</div>
-    <div class="section-title">Built for developers who ship</div>
-    <div class="features">
-        <div class="feature">
-            <div class="feature-icon">⚡</div>
-            <h3>Instant on tag push</h3>
-            <p>No manual trigger. Webhook fires on every tag push and your release notes are ready before you switch tabs.</p>
+<div class="max-w-[860px] mx-auto px-8 py-20">
+    <div class="font-mono text-[11px] font-medium text-muted tracking-[0.08em] uppercase mb-3">Features</div>
+    <div class="text-[clamp(1.4rem,3vw,1.9rem)] font-semibold tracking-[-0.025em] text-slate-100 mb-12">Built for developers who ship</div>
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
+        <div class="bg-surface border border-border rounded-[10px] p-6 hover:border-border-hi transition-colors">
+            <div class="text-xl mb-3">⚡</div>
+            <h3 class="text-sm font-semibold text-slate-100 mb-1.5">Instant on tag push</h3>
+            <p class="text-[13px] text-muted leading-relaxed">No manual trigger. Webhook fires on every tag push and your release notes are ready before you switch tabs.</p>
         </div>
-        <div class="feature">
-            <div class="feature-icon">🧠</div>
-            <h3>AI that understands code</h3>
-            <p>Powered by Google Gemini. Reads commit messages, groups changes, and writes release notes that actually make sense.</p>
+        <div class="bg-surface border border-border rounded-[10px] p-6 hover:border-border-hi transition-colors">
+            <div class="text-xl mb-3">🧠</div>
+            <h3 class="text-sm font-semibold text-slate-100 mb-1.5">AI that understands code</h3>
+            <p class="text-[13px] text-muted leading-relaxed">Powered by Google Gemini. Reads commit messages, groups changes, and writes release notes that actually make sense.</p>
         </div>
-        <div class="feature">
-            <div class="feature-icon">📋</div>
-            <h3>Minor and major releases</h3>
-            <p>Minor releases get clean changelogs. Major releases get migration guides, upgrade docs, and marketing notes.</p>
+        <div class="bg-surface border border-border rounded-[10px] p-6 hover:border-border-hi transition-colors">
+            <div class="text-xl mb-3">📋</div>
+            <h3 class="text-sm font-semibold text-slate-100 mb-1.5">Minor and major releases</h3>
+            <p class="text-[13px] text-muted leading-relaxed">Minor releases get clean changelogs. Major releases get migration guides, upgrade docs, and marketing notes.</p>
         </div>
-        <div class="feature">
-            <div class="feature-icon">📬</div>
-            <h3>Email notifications</h3>
-            <p>Get notified when a release is processed. Your team stays in the loop without checking GitHub manually.</p>
+        <div class="bg-surface border border-border rounded-[10px] p-6 hover:border-border-hi transition-colors">
+            <div class="text-xl mb-3">📬</div>
+            <h3 class="text-sm font-semibold text-slate-100 mb-1.5">Email notifications</h3>
+            <p class="text-[13px] text-muted leading-relaxed">Get notified when a release is processed. Your team stays in the loop without checking GitHub manually.</p>
         </div>
-        <div class="feature">
-            <div class="feature-icon">🔒</div>
-            <h3>Secure webhook verification</h3>
-            <p>Every webhook is verified with HMAC-SHA256 signature checking. Only GitHub can trigger your releases.</p>
+        <div class="bg-surface border border-border rounded-[10px] p-6 hover:border-border-hi transition-colors">
+            <div class="text-xl mb-3">🔒</div>
+            <h3 class="text-sm font-semibold text-slate-100 mb-1.5">Secure webhook verification</h3>
+            <p class="text-[13px] text-muted leading-relaxed">Every webhook is verified with HMAC-SHA256 signature checking. Only GitHub can trigger your releases.</p>
         </div>
-        <div class="feature">
-            <div class="feature-icon">🗂️</div>
-            <h3>Full release history</h3>
-            <p>Every release is stored in your dashboard. Search, review, and link to any past release notes in one place.</p>
+        <div class="bg-surface border border-border rounded-[10px] p-6 hover:border-border-hi transition-colors">
+            <div class="text-xl mb-3">🗂️</div>
+            <h3 class="text-sm font-semibold text-slate-100 mb-1.5">Full release history</h3>
+            <p class="text-[13px] text-muted leading-relaxed">Every release is stored in your dashboard. Search, review, and link to any past release notes in one place.</p>
         </div>
     </div>
 </div>
 
-<div class="divider"></div>
+<div class="h-px bg-border max-w-[860px] mx-auto"></div>
 
 <!-- PRICING -->
-<div class="section" id="pricing">
-    <div class="section-label">Pricing</div>
-    <div class="section-title">Start free, upgrade when you need to</div>
-    <div class="pricing">
+<div class="max-w-[860px] mx-auto px-8 py-20" id="pricing">
+    <div class="font-mono text-[11px] font-medium text-muted tracking-[0.08em] uppercase mb-3">Pricing</div>
+    <div class="text-[clamp(1.4rem,3vw,1.9rem)] font-semibold tracking-[-0.025em] text-slate-100 mb-12">Start free, upgrade when you need to</div>
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
 
-        <div class="plan">
-            <div class="plan-name">Free</div>
-            <div class="plan-price">$0 <span>/ month</span></div>
-            <div class="plan-desc">For developers getting started.</div>
-            <div class="plan-divider"></div>
-            <ul class="plan-features">
-                <li>5 releases per month</li>
-                <li>Minor releases only</li>
-                <li>GitHub draft creation</li>
-                <li>Release history</li>
-                <li class="no">Major release support</li>
-                <li class="no">Email notifications</li>
-                <li class="no">Migration guides</li>
+        <!-- Free -->
+        <div class="bg-surface border border-border rounded-[10px] p-7 flex flex-col">
+            <div class="font-mono text-sm font-semibold text-muted uppercase tracking-widest mb-1.5">Free</div>
+            <div class="text-[2rem] font-semibold text-slate-100 tracking-tight mb-1">$0 <span class="text-sm font-normal text-muted">/ month</span></div>
+            <div class="text-[13px] text-muted mb-5">For developers getting started.</div>
+            <div class="h-px bg-border mb-5"></div>
+            <ul class="flex flex-col gap-2.5 flex-1 text-[13px]">
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>5 releases per month</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Minor releases only</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>GitHub draft creation</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Release history</li>
+                <li class="flex gap-2 items-start text-dim"><span class="text-dim font-semibold shrink-0 mt-0.5">–</span>Major release support</li>
+                <li class="flex gap-2 items-start text-dim"><span class="text-dim font-semibold shrink-0 mt-0.5">–</span>Email notifications</li>
+                <li class="flex gap-2 items-start text-dim"><span class="text-dim font-semibold shrink-0 mt-0.5">–</span>Migration guides</li>
             </ul>
-            <a href="/login" class="plan-cta">Get started</a>
+            <a href="/login" class="mt-6 block text-center bg-border text-slate-200 border border-border-hi text-[13px] font-medium py-2.5 rounded-[7px] hover:bg-border-hi transition-colors">Get started</a>
         </div>
 
-        <div class="plan featured">
-            <div class="plan-badge">Most popular</div>
-            <div class="plan-name">Pro</div>
-            <div class="plan-price">$9 <span>/ month</span></div>
-            <div class="plan-desc">For solo devs who ship regularly.</div>
-            <div class="plan-divider"></div>
-            <ul class="plan-features">
-                <li>50 releases per month</li>
-                <li>Minor &amp; major releases</li>
-                <li>GitHub draft creation</li>
-                <li>Release history</li>
-                <li>Email notifications</li>
-                <li>Migration guides</li>
-                <li class="no">Unlimited releases</li>
+        <!-- Pro (featured) -->
+        <div class="bg-gradient-to-br from-[#0e1825] to-surface border border-blue-500 rounded-[10px] p-7 flex flex-col">
+            <div class="font-mono text-[10px] font-medium text-blue-500 bg-blue-dim border border-blue-border rounded px-2 py-0.5 inline-block mb-4 uppercase tracking-widest w-fit">Most popular</div>
+            <div class="font-mono text-sm font-semibold text-muted uppercase tracking-widest mb-1.5">Pro</div>
+            <div class="text-[2rem] font-semibold text-slate-100 tracking-tight mb-1">$9 <span class="text-sm font-normal text-muted">/ month</span></div>
+            <div class="text-[13px] text-muted mb-5">For solo devs who ship regularly.</div>
+            <div class="h-px bg-border mb-5"></div>
+            <ul class="flex flex-col gap-2.5 flex-1 text-[13px]">
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>50 releases per month</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Minor &amp; major releases</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>GitHub draft creation</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Release history</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Email notifications</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Migration guides</li>
+                <li class="flex gap-2 items-start text-dim"><span class="text-dim font-semibold shrink-0 mt-0.5">–</span>Unlimited releases</li>
             </ul>
-            <a href="/login" class="plan-cta">Get Pro</a>
+            <a href="/login" class="mt-6 block text-center bg-blue-500 border border-blue-500 text-white text-[13px] font-medium py-2.5 rounded-[7px] hover:opacity-85 transition-opacity">Get Pro</a>
         </div>
 
-        <div class="plan">
-            <div class="plan-name">Max</div>
-            <div class="plan-price">$19 <span>/ month</span></div>
-            <div class="plan-desc">For teams and power users.</div>
-            <div class="plan-divider"></div>
-            <ul class="plan-features">
-                <li>Unlimited releases</li>
-                <li>Minor &amp; major releases</li>
-                <li>GitHub draft creation</li>
-                <li>Release history</li>
-                <li>Email notifications</li>
-                <li>Migration guides</li>
-                <li>Priority processing</li>
+        <!-- Max -->
+        <div class="bg-surface border border-border rounded-[10px] p-7 flex flex-col">
+            <div class="font-mono text-sm font-semibold text-muted uppercase tracking-widest mb-1.5">Max</div>
+            <div class="text-[2rem] font-semibold text-slate-100 tracking-tight mb-1">$19 <span class="text-sm font-normal text-muted">/ month</span></div>
+            <div class="text-[13px] text-muted mb-5">For teams and power users.</div>
+            <div class="h-px bg-border mb-5"></div>
+            <ul class="flex flex-col gap-2.5 flex-1 text-[13px]">
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Unlimited releases</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Minor &amp; major releases</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>GitHub draft creation</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Release history</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Email notifications</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Migration guides</li>
+                <li class="flex gap-2 items-start text-muted"><span class="text-green-400 font-semibold shrink-0 mt-0.5">✓</span>Priority processing</li>
             </ul>
-            <a href="/login" class="plan-cta">Get Max</a>
+            <a href="/login" class="mt-6 block text-center bg-border text-slate-200 border border-border-hi text-[13px] font-medium py-2.5 rounded-[7px] hover:bg-border-hi transition-colors">Get Max</a>
         </div>
 
     </div>
 </div>
 
-<div class="divider"></div>
+<div class="h-px bg-border max-w-[860px] mx-auto"></div>
 
 <!-- FAQ -->
-<div class="section">
-    <div class="section-label">FAQ</div>
-    <div class="section-title">Common questions</div>
-    <div class="faq">
-        <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+<div class="max-w-[860px] mx-auto px-8 py-20">
+    <div class="font-mono text-[11px] font-medium text-muted tracking-[0.08em] uppercase mb-3">FAQ</div>
+    <div class="text-[clamp(1.4rem,3vw,1.9rem)] font-semibold tracking-[-0.025em] text-slate-100 mb-5">Common questions</div>
+    <div class="border border-border rounded-[10px] overflow-hidden">
+        <div class="faq-item border-b border-border bg-surface">
+            <button class="faq-q w-full text-left bg-transparent border-0 cursor-pointer px-6 py-3 text-sm font-medium text-slate-100 font-sans flex justify-between items-center hover:bg-[#0a0d14] transition-colors" onclick="toggleFaq(this)">
                 Do I need to change my git workflow?
-                <span class="faq-arrow">▼</span>
+                <span class="faq-arrow text-muted text-xs">▼</span>
             </button>
-            <div class="faq-a">No. You tag and push exactly as you do today. RelaxRelease listens in the background and handles everything automatically.</div>
+            <div class="faq-a px-6 pb-4 text-[13px] text-muted leading-[1.7]">No. You tag and push exactly as you do today. RelaxRelease listens in the background and handles everything automatically.</div>
         </div>
-        <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+        <div class="faq-item border-b border-border bg-surface">
+            <button class="faq-q w-full text-left bg-transparent border-0 cursor-pointer px-6 py-3 text-sm font-medium text-slate-100 font-sans flex justify-between items-center hover:bg-[#0a0d14] transition-colors" onclick="toggleFaq(this)">
                 What permissions does RelaxRelease need on GitHub?
-                <span class="faq-arrow">▼</span>
+                <span class="faq-arrow text-muted text-xs">▼</span>
             </button>
-            <div class="faq-a">We request permission to install webhooks on repositories you select, and to create GitHub Releases as drafts. We never read your source code — only commit messages and tags.</div>
+            <div class="faq-a px-6 pb-4 text-[13px] text-muted leading-[1.7]">We request permission to install webhooks on repositories you select, and to create GitHub Releases as drafts. We never read your source code — only commit messages and tags.</div>
         </div>
-        <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+        <div class="faq-item border-b border-border bg-surface">
+            <button class="faq-q w-full text-left bg-transparent border-0 cursor-pointer px-6 py-3 text-sm font-medium text-slate-100 font-sans flex justify-between items-center hover:bg-[#0a0d14] transition-colors" onclick="toggleFaq(this)">
                 What is the difference between a minor and major release?
-                <span class="faq-arrow">▼</span>
+                <span class="faq-arrow text-muted text-xs">▼</span>
             </button>
-            <div class="faq-a">Minor releases (e.g. 1.0.0 → 1.1.0) get a standard changelog. Major releases (e.g. 1.x.x → 2.0.0) additionally receive a migration guide, upgrade documentation, and marketing-ready notes.</div>
+            <div class="faq-a px-6 pb-4 text-[13px] text-muted leading-[1.7]">Minor releases (e.g. 1.0.0 → 1.1.0) get a standard changelog. Major releases (e.g. 1.x.x → 2.0.0) additionally receive a migration guide, upgrade documentation, and marketing-ready notes.</div>
         </div>
-        <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+        <div class="faq-item border-b border-border bg-surface">
+            <button class="faq-q w-full text-left bg-transparent border-0 cursor-pointer px-6 py-3 text-sm font-medium text-slate-100 font-sans flex justify-between items-center hover:bg-[#0a0d14] transition-colors" onclick="toggleFaq(this)">
                 Can I edit the release notes before publishing?
-                <span class="faq-arrow">▼</span>
+                <span class="faq-arrow text-muted text-xs">▼</span>
             </button>
-            <div class="faq-a">Yes. RelaxRelease always creates a draft in GitHub Releases. You review and publish when you're happy — nothing goes live without your approval.</div>
+            <div class="faq-a px-6 pb-4 text-[13px] text-muted leading-[1.7]">Yes. RelaxRelease always creates a draft in GitHub Releases. You review and publish when you're happy — nothing goes live without your approval.</div>
         </div>
-        <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+        <div class="faq-item bg-surface">
+            <button class="faq-q w-full text-left bg-transparent border-0 cursor-pointer px-6 py-3 text-sm font-medium text-slate-100 font-sans flex justify-between items-center hover:bg-[#0a0d14] transition-colors" onclick="toggleFaq(this)">
                 What happens if I exceed my plan limit?
-                <span class="faq-arrow">▼</span>
+                <span class="faq-arrow text-muted text-xs">▼</span>
             </button>
-            <div class="faq-a">Releases beyond your monthly limit are skipped and you'll be notified. You can upgrade your plan at any time from the billing page.</div>
+            <div class="faq-a px-6 pb-4 text-[13px] text-muted leading-[1.7]">Releases beyond your monthly limit are skipped and you'll be notified. You can upgrade your plan at any time from the billing page.</div>
         </div>
     </div>
 </div>
 
-<div class="divider"></div>
+<div class="h-px bg-border max-w-[860px] mx-auto"></div>
 
 <!-- BOTTOM CTA -->
-<div class="cta-section">
-    <h2>Stop writing release notes by hand</h2>
-    <p>Connect your first repository in under a minute. Free plan, no credit card required.</p>
-    <a href="/login" class="btn-primary" style="display:inline-block;">Get started free →</a>
+<div class="max-w-lg mx-auto px-8 py-20 text-center">
+    <h2 class="text-[clamp(1.5rem,3vw,2rem)] font-semibold tracking-[-0.025em] mb-3">Stop writing release notes by hand</h2>
+    <p class="text-sm text-muted mb-7">Connect your first repository in under a minute. Free plan, no credit card required.</p>
+    <a href="/login" class="inline-block bg-blue-500 text-white text-sm font-medium px-6 py-2.5 rounded-[7px] hover:opacity-85 transition-opacity">Get started free →</a>
 </div>
 
 <!-- FOOTER -->
-<div class="divider"></div>
-<footer>
-    <span class="footer-logo">🚀 RelaxRelease</span>
-    <div class="footer-links">
-        <a href="/terms">Terms of Service</a>
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/refund">Refund Policy</a>
+<div class="h-px bg-border max-w-[860px] mx-auto"></div>
+<footer class="max-w-[860px] mx-auto px-8 py-6 flex items-center justify-between flex-wrap gap-3">
+    <span class="font-mono text-[13px] text-muted">🚀 RelaxRelease</span>
+    <div class="flex gap-6">
+        <a href="/terms" class="text-xs text-dim hover:text-muted transition-colors">Terms of Service</a>
+        <a href="/privacy" class="text-xs text-dim hover:text-muted transition-colors">Privacy Policy</a>
+        <a href="/refund" class="text-xs text-dim hover:text-muted transition-colors">Refund Policy</a>
     </div>
 </footer>
 
