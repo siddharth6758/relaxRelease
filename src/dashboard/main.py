@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import List
 from contextlib import asynccontextmanager
 
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from fastapi import FastAPI, Request, HTTPException, Response, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -18,16 +21,12 @@ from .auth import (
     get_current_user, require_auth, get_github_token, get_user_provider, require_admin
 )
 from .billing import router as billing_router
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
+from fastapi.staticfiles import StaticFiles
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from dashboard.database import (
+from .database import (
     init_db, save_release, get_all_releases, get_release_by_id,
     check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription, add_repository, list_repositories, delete_repository, get_user_plan, get_user_id_by_repo, create_ticket, get_ticket_by_id, get_tickets_by_user, upload_ticket_images, get_all_tickets_admin, get_ticket_admin, reply_to_ticket, update_ticket_status,
     get_all_subscriptions_admin, get_admin_stats, get_all_users, send_ticket_reply_to_user, get_supabase
@@ -43,8 +42,10 @@ templates = Jinja2Templates(
     directory=str(Path(__file__).parent / "templates")
 )
 
+load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
 
-from contextlib import asynccontextmanager
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -67,7 +68,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="RelaxRelease", lifespan=lifespan)
 app.include_router(billing_router)
-
+app.mount(
+    "/assets",
+    StaticFiles(directory=str(Path(__file__).parent / "templates" / "assets")),
+    name="assets"
+)
 
 @app.get("/", response_class=HTMLResponse)
 async def landing(request: Request):
