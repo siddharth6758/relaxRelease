@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-6 py-10">
+    <a href="/admin/users" class="text-gray-500 text-sm hover:text-gray-300 transition">← Users</a>
+
+    {% if target_user %}
+    <div class="mt-6 mb-8">
+        <h1 class="text-2xl font-bold text-white">{{ target_user.email }}</h1>
+        <p class="text-gray-500 text-sm mt-1">ID: {{ target_user.id }}</p>
+    </div>
+
+    <!-- Plan Badge -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+            <div class="text-xs text-gray-500 uppercase tracking-widest mb-1">Current Plan</div>
+            <div class="text-lg font-bold
+                {% if plan == 'max' %}text-purple-400
+                {% elif plan == 'pro' %}text-blue-400
+                {% else %}text-gray-300{% endif %}">
+                {{ plan | upper }}
+            </div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+            <div class="text-xs text-gray-500 uppercase tracking-widest mb-1">Repos Connected</div>
+            <div class="text-lg font-bold text-white">{{ repos | length }}</div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+            <div class="text-xs text-gray-500 uppercase tracking-widest mb-1">Total Releases</div>
+            <div class="text-lg font-bold text-white">{{ releases | length }}</div>
+        </div>
+    </div>
+
+    <!-- Change Plan -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+        <h2 class="text-sm font-semibold text-white uppercase tracking-widest mb-4">Change Plan</h2>
+        <form method="POST" action="/admin/users/{{ target_user.id }}/plan" class="flex items-center gap-3">
+            <select name="plan" class="bg-gray-800 border border-gray-700 text-white text-sm rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                <option value="free" {% if plan == 'free' %}selected{% endif %}>Free</option>
+                <option value="pro" {% if plan == 'pro' %}selected{% endif %}>Pro</option>
+                <option value="max" {% if plan == 'max' %}selected{% endif %}>Max</option>
+            </select>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded transition">
+                Update Plan
+            </button>
+        </form>
+    </div>
+
+    <!-- Revoke Access -->
+    <div class="bg-gray-900 border border-red-900 rounded-lg p-6 mb-6">
+        <h2 class="text-sm font-semibold text-red-400 uppercase tracking-widest mb-2">Revoke Access</h2>
+        <p class="text-gray-500 text-sm mb-4">Downgrades user to free and cancels their subscription immediately.</p>
+        <form method="POST" action="/admin/users/{{ target_user.id }}/revoke"
+              onsubmit="return confirm('Revoke access for {{ target_user.email }}?')">
+            <button type="submit" class="bg-red-700 hover:bg-red-600 text-white text-sm font-medium px-4 py-2 rounded transition">
+                Revoke Access
+            </button>
+        </form>
+    </div>
+
+    <!-- Connected Repos -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+        <h2 class="text-sm font-semibold text-white uppercase tracking-widest mb-4">Connected Repositories</h2>
+        {% if repos %}
+        <ul class="divide-y divide-gray-800">
+            {% for repo in repos %}
+            <li class="py-2 flex items-center justify-between">
+                <span class="text-sm text-gray-300 font-mono">{{ repo.repo_full_name }}</span>
+                <span class="text-xs text-gray-600">{{ repo.created_at.strftime('%b %d, %Y') if repo.created_at else "—" }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-600 text-sm">No repositories connected.</p>
+        {% endif %}
+    </div>
+
+    <!-- Recent Releases -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-6">
+        <h2 class="text-sm font-semibold text-white uppercase tracking-widest mb-4">Recent Releases</h2>
+        {% if releases %}
+        <ul class="divide-y divide-gray-800">
+            {% for r in releases[:10] %}
+            <li class="py-2 flex items-center justify-between">
+                <div>
+                    <span class="text-sm text-gray-300 font-mono">{{ r.repo }}</span>
+                    <span class="ml-2 text-xs text-gray-500">{{ r.tag }}</span>
+                    <span class="ml-2 text-xs px-1.5 py-0.5 rounded
+                        {% if r.release_type == 'major' %}bg-purple-900 text-purple-300
+                        {% else %}bg-gray-800 text-gray-400{% endif %}">
+                        {{ r.release_type }}
+                    </span>
+                </div>
+                <span class="text-xs text-gray-600">{{ r.created_at.strftime('%b %d, %Y') if r.created_at else "—" }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-600 text-sm">No releases yet.</p>
+        {% endif %}
+    </div>
+
+    {% else %}
+    <p class="text-gray-500 mt-8">User not found.</p>
+    {% endif %}
+</div>
+{% endblock %}

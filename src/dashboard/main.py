@@ -26,11 +26,7 @@ from dotenv import load_dotenv
 
 from fastapi.staticfiles import StaticFiles
 
-from .database import (
-    init_db, save_release, get_all_releases, get_release_by_id,
-    check_plan_limits, get_expired_paid_users, enforce_free_tier_on_expiry, cancel_subscription, add_repository, list_repositories, delete_repository, get_user_plan, get_user_id_by_repo, create_ticket, get_ticket_by_id, get_tickets_by_user, upload_ticket_images, get_all_tickets_admin, get_ticket_admin, reply_to_ticket, update_ticket_status,
-    get_all_subscriptions_admin, get_admin_stats, get_all_users, send_ticket_reply_to_user, get_supabase
-)
+from .database import *
 from agent.classifier import classify_release
 from agent.github_client import get_commits_between_tags, create_release_draft, create_webhook, delete_webhook
 from agent.release_notes import generate_release_notes
@@ -628,6 +624,40 @@ async def admin_ticket_reply(
     # if user_email:
     #     send_ticket_reply_to_user(user_email, ticket.subject, message, ticket_id)
     return RedirectResponse(f"/admin/tickets/{ticket_id}", status_code=303)
+
+@app.get("/admin/users/{user_id}", response_class=HTMLResponse)
+async def admin_user_detail(request: Request, user_id: str):
+    user = require_admin(request)
+    supabase = get_supabase()
+    target = supabase.auth.admin.get_user_by_id(user_id)
+    target_user = target.user if target else None
+    plan = get_user_plan(user_id)
+    repos = get_repos_by_user(user_id)
+    releases = get_all_releases(user_id)
+    return templates.TemplateResponse("admin/user_detail.html", {
+        "request": request,
+        "user": user,
+        "target_user": target_user,
+        "plan": plan,
+        "repos": repos,
+        "releases": releases,
+    })
+
+
+@app.post("/admin/users/{user_id}/plan")
+async def admin_change_plan(request: Request, user_id: str, plan: str = Form(...)):
+    require_admin(request)
+    if plan not in ("free", "pro", "max"):
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    admin_set_user_plan(user_id, plan)
+    return RedirectResponse(f"/admin/users/{user_id}", status_code=303)
+
+
+@app.post("/admin/users/{user_id}/revoke")
+async def admin_revoke_user(request: Request, user_id: str):
+    require_admin(request)
+    admin_revoke_access(user_id)
+    return RedirectResponse(f"/admin/users/{user_id}", status_code=303)
 
 if __name__ == "__main__":
     import uvicorn

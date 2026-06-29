@@ -619,6 +619,55 @@ def get_admin_stats() -> dict:
     finally:
         db.close()
 
+def admin_set_user_plan(user_id: str, plan: str) -> Subscription:
+    db = SessionLocal()
+    try:
+        now = datetime.utcnow()
+        sub = db.query(Subscription).filter(Subscription.user_id == user_id).first()
+        if sub:
+            sub.plan = plan
+            sub.status = "active"
+            sub.expires_at = None
+            sub.plan_activated_at = now
+            sub.updated_at = now
+        else:
+            sub = Subscription(
+                user_id=user_id,
+                plan=plan,
+                status="active",
+                plan_activated_at=now,
+            )
+            db.add(sub)
+        db.commit()
+        db.refresh(sub)
+        return sub
+    finally:
+        db.close()
+
+
+def admin_revoke_access(user_id: str) -> None:
+    db = SessionLocal()
+    try:
+        sub = db.query(Subscription).filter(Subscription.user_id == user_id).first()
+        if sub:
+            sub.plan = "free"
+            sub.status = "cancelled"
+            sub.expires_at = datetime.utcnow()
+            sub.updated_at = datetime.utcnow()
+            db.commit()
+    finally:
+        db.close()
+
+
+def get_repos_by_user(user_id: str) -> list:
+    db = SessionLocal()
+    try:
+        return db.query(Repository).filter(
+            Repository.user_id == uuid.UUID(user_id)
+        ).order_by(Repository.created_at.desc()).all()
+    finally:
+        db.close()
+
 if __name__ == "__main__":
     init_db()
     print("Database module loaded successfully.")
