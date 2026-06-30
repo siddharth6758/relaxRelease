@@ -12,7 +12,6 @@ def _call_gemini(prompt: str) -> str:
         import sys
         print("❌ GEMINI_API_KEY environment variable is not set.")
         sys.exit(1)
-
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
     def call():
@@ -28,8 +27,9 @@ def _call_gemini(prompt: str) -> str:
     return retry(call)
 
 
-def generate_migration_guide(commits: list[str], previous_version: str, new_version: str, repo_name: str) -> str:
+def generate_migration_guide(commits: list[str], previous_version: str, new_version: str, repo_name: str, files_changed: list[str] = None) -> str:
     commit_text = "\n".join(f"- {c}" for c in commits)
+    files_text = "\n".join(f"- {f}" for f in (files_changed or [])) or "Not available"
 
     prompt = f"""You are a senior technical writer creating a migration guide for a major version upgrade.
 
@@ -39,21 +39,26 @@ Upgrading from: {previous_version} to {new_version}
 Commits in this release:
 {commit_text}
 
+Files changed (for context when commit messages are vague):
+{files_text}
+
 Generate a detailed migration guide including:
 1. Overview of what changed and why this is a major release
-2. Breaking changes (infer from commits — look for anything that changes APIs, removes features, or changes behavior)
+2. Breaking changes (infer from commits and file changes — look for anything that changes APIs, removes features, or changes behavior)
 3. Step-by-step migration instructions
 4. Before and after code examples if applicable (use generic examples based on the changes)
 5. Common issues users might face during migration
 
 Be specific, practical, and developer-friendly.
-If no obvious breaking changes are found in commits, say so clearly and provide a general upgrade guide.
+If no obvious breaking changes are found, say so clearly and provide a general upgrade guide.
+Important: Do not invent breaking changes or specifics not evidenced by the commits/files above.
 """
     return _call_gemini(prompt)
 
 
-def generate_marketing_notes(commits: list[str], previous_version: str, new_version: str, repo_name: str) -> str:
+def generate_marketing_notes(commits: list[str], previous_version: str, new_version: str, repo_name: str, files_changed: list[str] = None) -> str:
     commit_text = "\n".join(f"- {c}" for c in commits)
+    files_text = "\n".join(f"- {f}" for f in (files_changed or [])) or "Not available"
 
     prompt = f"""You are a product marketer writing release announcement copy for a major software release.
 
@@ -63,6 +68,9 @@ Version: {new_version} (major release from {previous_version})
 Changes in this release:
 {commit_text}
 
+Files changed (for context when commit messages are vague):
+{files_text}
+
 Generate marketing-friendly release notes including:
 1. An exciting headline for the release
 2. A compelling 2-3 sentence summary for non-technical users
@@ -71,12 +79,14 @@ Generate marketing-friendly release notes including:
 
 Write in an enthusiastic but professional tone.
 Focus on user value and impact, not implementation details.
+Important: Only highlight capabilities clearly evidenced by the commits/files above — do not invent features.
 """
     return _call_gemini(prompt)
 
 
-def generate_major_release_notes(commits: list[str], previous_version: str, new_version: str, repo_name: str) -> str:
+def generate_major_release_notes(commits: list[str], previous_version: str, new_version: str, repo_name: str, files_changed: list[str] = None) -> str:
     commit_text = "\n".join(f"- {c}" for c in commits)
+    files_text = "\n".join(f"- {f}" for f in (files_changed or [])) or "Not available"
 
     prompt = f"""You are a technical writer generating comprehensive release notes for a major software version.
 
@@ -85,6 +95,9 @@ Major release: {previous_version} → {new_version}
 
 Commits in this release:
 {commit_text}
+
+Files changed (for context when commit messages are vague):
+{files_text}
 
 Generate comprehensive release notes including:
 1. Release summary (3-4 sentences covering the theme of this major release)
@@ -95,6 +108,7 @@ Generate comprehensive release notes including:
 6. Changelog entry (single line for CHANGELOG.md)
 
 Be thorough, clear, and professional.
+Important: Base every claim strictly on the commits and file changes above. Group vague, uninformative commits under "Maintenance" rather than guessing their purpose.
 """
     return _call_gemini(prompt)
 
@@ -103,39 +117,29 @@ def build_major_release_body(
     commits: list[str],
     previous_version: str,
     new_version: str,
-    repo_name: str
+    repo_name: str,
+    files_changed: list[str] = None
 ) -> str:
     """
     Builds the full GitHub Release body for a major release.
     Combines release notes, marketing copy, and migration guide.
     """
     print("   Generating major release notes...")
-    release_notes = generate_major_release_notes(commits, previous_version, new_version, repo_name)
-
+    release_notes = generate_major_release_notes(commits, previous_version, new_version, repo_name, files_changed)
     print("   Generating marketing notes...")
-    marketing = generate_marketing_notes(commits, previous_version, new_version, repo_name)
-
+    marketing = generate_marketing_notes(commits, previous_version, new_version, repo_name, files_changed)
     print("   Generating migration guide...")
-    migration = generate_migration_guide(commits, previous_version, new_version, repo_name)
+    migration = generate_migration_guide(commits, previous_version, new_version, repo_name, files_changed)
 
     body = f"""# 🚀 {repo_name} {new_version}
-
 {release_notes}
-
 ---
-
 ## 📣 What's New
-
 {marketing}
-
 ---
-
 ## 🔄 Migration Guide
-
 {migration}
-
 ---
-
 *Release notes generated by [RelaxRelease](https://github.com/siddharth6758/relaxRelease)*
 """
     return body
@@ -150,11 +154,16 @@ if __name__ == "__main__":
         "fix: resolve memory leak in connection pool",
         "chore: update all dependencies to latest versions",
     ]
-
+    sample_files_changed = [
+        "src/auth/api.py (modified, +120/-80)",
+        "src/dashboard/analytics.py (added, +200/-0)",
+        "setup.py (modified, +2/-5)",
+    ]
     body = build_major_release_body(
         commits=sample_commits,
         previous_version="1.9.0",
         new_version="2.0.0",
-        repo_name="relax-release"
+        repo_name="relax-release",
+        files_changed=sample_files_changed
     )
     print(body)

@@ -14,17 +14,20 @@ def _headers(token: str) -> dict:
     }
 
 
-def get_commits_between_tags(repo: str, base_tag: str, head_tag: str, token: str) -> list[str]:
+def get_commits_between_tags(repo: str, base_tag: str, head_tag: str, token: str) -> dict:
     url = f"{GITHUB_API_BASE}/repos/{repo}/compare/{base_tag}...{head_tag}"
 
     def call():
         response = requests.get(url, headers=_headers(token), timeout=TIMEOUT)
         if response.status_code != 200:
             handle_rate_limit(response.status_code, response.text, "GitHub")
-        return [
-            c["commit"]["message"].split("\n")[0]
-            for c in response.json().get("commits", [])
+        data = response.json()
+        commits = [c["commit"]["message"].strip() for c in data.get("commits", [])]
+        files = [
+            f"{f.get('filename')} ({f.get('status')}, +{f.get('additions', 0)}/-{f.get('deletions', 0)})"
+            for f in data.get("files", [])[:50]
         ]
+        return {"commits": commits, "files_changed": files}
 
     return retry(call)
 

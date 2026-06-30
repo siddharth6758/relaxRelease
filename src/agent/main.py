@@ -22,7 +22,9 @@ def run_agent(repo: str, previous_tag: str, new_tag: str, github_token: str):
 
     # Step 2: Fetch commits between tags
     print(f"\n📦 Fetching commits between {previous_tag} and {new_tag}...")
-    commits = get_commits_between_tags(repo, previous_tag, new_tag, github_token)
+    diff_data = get_commits_between_tags(repo, previous_tag, new_tag, github_token)
+    commits = diff_data["commits"]
+    files_changed = diff_data["files_changed"]
 
     if not commits:
         print("⚠️  No commits found between tags. Exiting.")
@@ -30,7 +32,7 @@ def run_agent(repo: str, previous_tag: str, new_tag: str, github_token: str):
 
     print(f"   Found {len(commits)} commits:")
     for c in commits:
-        print(f"   - {c}")
+        print(f"   - {c.splitlines()[0]}")
 
     # Step 3: Generate release notes based on release type
     if release_type == "major":
@@ -39,14 +41,16 @@ def run_agent(repo: str, previous_tag: str, new_tag: str, github_token: str):
             commits=commits,
             previous_version=previous_tag,
             new_version=new_tag,
-            repo_name=repo
+            repo_name=repo,
+            files_changed=files_changed
         )
     else:
         print(f"\n✍️  Generating release notes with Gemini...")
         notes = generate_release_notes(
             commits=commits,
             version=new_tag,
-            repo_name=repo
+            repo_name=repo,
+            files_changed=files_changed
         )
 
     print("\n--- Generated Release Notes ---")
